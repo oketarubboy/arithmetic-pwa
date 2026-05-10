@@ -47,7 +47,7 @@ const els = {
   空欄のままなら、端末内ランキングだけで動きます。
 */
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw_Sn5_nHYpD8GE9uIHjAHWUh0g2HzWlP6BOK3j7qQA1rWOcBxWNR5rZXYgjNh2l5r2TA/exec";
-const APP_VERSION = "v14";
+const APP_VERSION = "v16";
 const APP_CACHE_PREFIX = "arithmetic-pwa-";
 
 let settings = null;
@@ -58,13 +58,18 @@ let startTime = 0;
 let questionStartTime = 0;
 let questionResults = [];
 let timerId = null;
+let answerLocked = false;
+let finishLocked = false;
+const sendingRankingIds = new Set();
 
 const RANKING_STORAGE_KEY = "arithmetic-pwa-ranking-v1";
 const PLAYER_STORAGE_KEY = "arithmetic-pwa-player-name-v1";
 const DEVICE_STORAGE_KEY = "arithmetic-pwa-device-id-v1";
 const PENDING_RANKING_STORAGE_KEY = "arithmetic-pwa-pending-ranking-v1";
+const SUBMITTED_RANKING_IDS_STORAGE_KEY = "arithmetic-pwa-submitted-ranking-ids-v1";
 const MAX_RANKING_ITEMS = 10;
 const MAX_ANSWER_LENGTH = 20;
+const FIXED_QUESTION_COUNT = 10;
 const TOTAL_CORRECT_STORAGE_KEY = "arithmetic-pwa-total-correct-v1";
 const STAMP_STORAGE_KEY = "arithmetic-pwa-unlocked-stamps-v2";
 const STAMPS = Array.isArray(window.STAMP_DEFINITIONS) ? window.STAMP_DEFINITIONS : [];
@@ -265,7 +270,7 @@ function getSettings() {
 
   return {
     playerName,
-    questionCount: clampInt(els.questionCount.value, 1, 100, 10),
+    questionCount: FIXED_QUESTION_COUNT,
     calculationMode,
     calculationLabel: getCalculationLabel(calculationMode),
     operandCount: digitList.length,
@@ -552,6 +557,8 @@ function startQuiz() {
   currentIndex = 0;
   correctCount = 0;
   questionResults = [];
+  answerLocked = false;
+  finishLocked = false;
   startTime = performance.now();
   els.feedback.textContent = "";
   els.feedback.className = "feedback";
@@ -562,6 +569,7 @@ function startQuiz() {
 }
 
 function showQuestion() {
+  answerLocked = false;
   const q = questions[currentIndex];
   els.progressText.textContent = `${currentIndex + 1} / ${questions.length}`;
   els.progressBar.style.width = `${(currentIndex / questions.length) * 100}%`;
@@ -655,6 +663,8 @@ function isValidAnswerText(value) {
 function submitAnswer(event) {
   event.preventDefault();
 
+  if (answerLocked) return;
+
   const answerText = els.answerInput.value.trim();
   if (!isValidAnswerText(answerText)) {
     els.feedback.textContent = "答えを入力してください";
@@ -662,6 +672,7 @@ function submitAnswer(event) {
     return;
   }
 
+  answerLocked = true;
   const q = questions[currentIndex];
   const userAnswer = Number(answerText);
   const isCorrect = userAnswer === q.answer;
@@ -724,6 +735,8 @@ function calculateScore(correct, total, seconds, config, perQuestionResults = []
 }
 
 function finishQuiz() {
+  if (finishLocked) return;
+  finishLocked = true;
   stopTimer();
   const seconds = elapsedSeconds();
   const score = calculateScore(correctCount, questions.length, seconds, settings, questionResults);
@@ -735,6 +748,7 @@ function finishQuiz() {
   const result = {
     date: new Date().toLocaleString("ja-JP"),
     timestamp: Date.now(),
+    submissionId: createSubmissionId(),
     playerName: settings.playerName,
     score,
     correct: correctCount,
@@ -822,6 +836,40 @@ async function syncRankingAfterResult(result) {
   }
 }
 
+function createSubmissionId() {
+  const deviceId = getDeviceId();
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return `${deviceId}-${window.crypto.randomUUID()}`;
+  }
+  return `${deviceId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function loadSubmittedRankingIds() {
+  try {
+    const ids = JSON.parse(localStorage.getItem(SUBMITTED_RANKING_IDS_STORAGE_KEY)) || [];
+    return Array.isArray(ids) ? ids.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+function hasSubmittedRankingId(submissionId) {
+  if (!submissionId) return false;
+  return loadSubmittedRankingIds().includes(String(submissionId));
+}
+
+function rememberSubmittedRankingId(submissionId) {
+  if (!submissionId) return;
+  const ids = loadSubmittedRankingIds();
+  if (!ids.includes(String(submissionId))) ids.push(String(submissionId));
+  localStorage.setItem(SUBMITTED_RANKING_IDS_STORAGE_KEY, JSON.stringify(ids.slice(-200)));
+}
+
+function ensureSubmissionId(result) {
+  if (!result.submissionId) result.submissionId = createSubmissionId();
+  return result.submissionId;
+}
+
 function loadPendingRanking() {
   try {
     const pending = JSON.parse(localStorage.getItem(PENDING_RANKING_STORAGE_KEY)) || [];
@@ -832,10 +880,11 @@ function loadPendingRanking() {
 }
 
 function savePendingRanking(result) {
+  ensureSubmissionId(result);
   const pending = loadPendingRanking();
-  const key = `${result.timestamp}-${result.deviceId}-${result.score}`;
-  const exists = pending.some(item => `${item.timestamp}-${item.deviceId}-${item.score}` === key);
-  if (!exists) {
+  const key = String(result.submissionId);
+  const exists = pending.some(item => String(item.submissionId || "") === key);
+  if (!exists && !hasSubmittedRankingId(key)) {
     pending.push(result);
   }
   localStorage.setItem(PENDING_RANKING_STORAGE_KEY, JSON.stringify(pending.slice(-50)));
@@ -859,21 +908,35 @@ async function flushPendingRanking() {
 }
 
 async function submitGlobalRanking(result) {
+  const submissionId = ensureSubmissionId(result);
+
+  if (hasSubmittedRankingId(submissionId) || sendingRankingIds.has(submissionId)) {
+    return;
+  }
+
+  sendingRankingIds.add(submissionId);
+
   const payload = {
     action: "submit",
     result,
   };
 
-  // Apps ScriptはCORS制限が出やすいため、送信は no-cors にする。
-  // no-corsではレスポンス本文は読めないが、スコア送信用途では問題ない。
-  await fetch(GAS_WEB_APP_URL, {
-    method: "POST",
-    mode: "no-cors",
-    headers: {
-      "Content-Type": "text/plain;charset=utf-8",
-    },
-    body: JSON.stringify(payload),
-  });
+  try {
+    // Apps ScriptはCORS制限が出やすいため、送信は no-cors にする。
+    // no-corsではレスポンス本文は読めないが、スコア送信用途では問題ない。
+    await fetch(GAS_WEB_APP_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    rememberSubmittedRankingId(submissionId);
+  } finally {
+    sendingRankingIds.delete(submissionId);
+  }
 }
 
 function refreshGlobalRanking() {
