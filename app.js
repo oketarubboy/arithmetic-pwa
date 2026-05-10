@@ -322,7 +322,7 @@ async function registerServiceWorker() {
   }
   try {
     await navigator.serviceWorker.register("service-worker.js");
-    els.installState.textContent = "オフライン対応";
+    els.installState.textContent = "PWA";
   } catch (error) {
     console.warn("Service Worker登録失敗", error);
     els.installState.textContent = "要HTTPS";
