@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#2563eb" />
+  <title>計算チャレンジ</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <section class="card hero">
+      <div>
+        <p class="eyebrow">Offline PWA</p>
+        <h1>計算チャレンジ</h1>
+        <p class="muted">ランダムに出題される計算問題を解いて、正答数とタイムでスコアを出します。</p>
+      </div>
+      <div class="badge" id="installState">PWA</div>
+    </section>
+
+    <section class="card" id="settingsPanel">
+      <h2>設定</h2>
+      <div class="grid">
+        <label>
+          問題数
+          <input id="questionCount" type="number" min="1" max="100" value="10" />
+        </label>
+        <label>
+          桁数
+          <input id="digits" type="number" min="1" max="5" value="1" />
+        </label>
+      </div>
+
+      <fieldset>
+        <legend>出題する計算</legend>
+        <label class="check"><input type="checkbox" name="operation" value="+" checked /> 足し算</label>
+        <label class="check"><input type="checkbox" name="operation" value="-" checked /> 引き算</label>
+        <label class="check"><input type="checkbox" name="operation" value="×" /> かけ算</label>
+        <label class="check"><input type="checkbox" name="operation" value="÷" /> わり算</label>
+      </fieldset>
+
+      <label class="check">
+        <input id="noNegative" type="checkbox" checked /> 引き算は答えがマイナスにならないようにする
+      </label>
+      <label class="check">
+        <input id="integerDivision" type="checkbox" checked /> わり算は割り切れる問題だけ出す
+      </label>
+
+      <button id="startButton" class="primary">スタート</button>
+    </section>
+
+    <section class="card hidden" id="quizPanel">
+      <div class="progressRow">
+        <span id="progressText">1 / 10</span>
+        <span id="timerText">0.0秒</span>
+      </div>
+      <div class="bar"><div id="progressBar"></div></div>
+      <div class="question" id="questionText">1 + 2 = ?</div>
+      <form id="answerForm" autocomplete="off">
+        <input id="answerInput" type="number" inputmode="numeric" placeholder="答え" />
+        <button class="primary" type="submit">回答</button>
+      </form>
+      <p id="feedback" class="feedback"></p>
+    </section>
+
+    <section class="card hidden" id="resultPanel">
+      <h2>結果</h2>
+      <div class="score" id="scoreText">0点</div>
+      <div class="resultGrid">
+        <div><span>正答数</span><strong id="correctText">0 / 10</strong></div>
+        <div><span>タイム</span><strong id="timeText">0.0秒</strong></div>
+      </div>
+      <div class="actions">
+        <button id="retryButton" class="primary">もう一度</button>
+        <button id="backButton">設定に戻る</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>履歴</h2>
+      <ol id="historyList" class="history"></ol>
+    </section>
+  </main>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
