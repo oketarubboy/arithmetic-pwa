@@ -24,6 +24,10 @@ const els = {
   timeText: document.getElementById("timeText"),
   rankingList: document.getElementById("rankingList"),
   rankingStatus: document.getElementById("rankingStatus"),
+  newStampArea: document.getElementById("newStampArea"),
+  newStampList: document.getElementById("newStampList"),
+  stampStatus: document.getElementById("stampStatus"),
+  stampList: document.getElementById("stampList"),
   installState: document.getElementById("installState"),
 };
 
@@ -41,6 +45,8 @@ let questions = [];
 let currentIndex = 0;
 let correctCount = 0;
 let startTime = 0;
+let questionStartTime = 0;
+let questionResults = [];
 let timerId = null;
 
 const RANKING_STORAGE_KEY = "arithmetic-pwa-ranking-v1";
@@ -49,6 +55,117 @@ const DEVICE_STORAGE_KEY = "arithmetic-pwa-device-id-v1";
 const PENDING_RANKING_STORAGE_KEY = "arithmetic-pwa-pending-ranking-v1";
 const MAX_RANKING_ITEMS = 10;
 const MAX_ANSWER_LENGTH = 12;
+const PLAY_COUNT_STORAGE_KEY = "arithmetic-pwa-play-count-v1";
+const STAMP_STORAGE_KEY = "arithmetic-pwa-unlocked-stamps-v1";
+const STAMPS = Array.isArray(window.STAMP_DEFINITIONS) ? window.STAMP_DEFINITIONS : [];
+
+function loadPlayCount() {
+  const count = Number.parseInt(localStorage.getItem(PLAY_COUNT_STORAGE_KEY) || "0", 10);
+  return Number.isNaN(count) ? 0 : count;
+}
+
+function savePlayCount(count) {
+  localStorage.setItem(PLAY_COUNT_STORAGE_KEY, String(Math.max(0, count)));
+}
+
+function incrementPlayCount() {
+  const next = loadPlayCount() + 1;
+  savePlayCount(next);
+  return next;
+}
+
+function loadUnlockedStampIds() {
+  try {
+    const ids = JSON.parse(localStorage.getItem(STAMP_STORAGE_KEY)) || [];
+    return Array.isArray(ids) ? ids : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveUnlockedStampIds(ids) {
+  const uniqueIds = [...new Set(ids.map(String))];
+  localStorage.setItem(STAMP_STORAGE_KEY, JSON.stringify(uniqueIds));
+}
+
+function unlockEligibleStamps(playCount) {
+  const unlocked = new Set(loadUnlockedStampIds());
+  const newlyUnlocked = [];
+
+  STAMPS.forEach(stamp => {
+    const requiredPlays = Number(stamp.requiredPlays || 0);
+    if (requiredPlays <= playCount && !unlocked.has(stamp.id)) {
+      unlocked.add(stamp.id);
+      newlyUnlocked.push(stamp);
+    }
+  });
+
+  if (newlyUnlocked.length) {
+    saveUnlockedStampIds([...unlocked]);
+  }
+
+  return newlyUnlocked;
+}
+
+function renderNewStamps(stamps) {
+  if (!els.newStampArea || !els.newStampList) return;
+
+  if (!stamps.length) {
+    els.newStampArea.classList.add("hidden");
+    els.newStampList.innerHTML = "";
+    return;
+  }
+
+  els.newStampArea.classList.remove("hidden");
+  els.newStampList.innerHTML = stamps.map(stamp => `
+    <div class="stampMiniCard">
+      <img src="${escapeHtml(stamp.src)}" alt="${escapeHtml(stamp.name)}" />
+      <strong>${escapeHtml(stamp.name)}</strong>
+      <span>${escapeHtml(stamp.description || `${stamp.requiredPlays}回プレイ`)}</span>
+    </div>
+  `).join("");
+}
+
+function renderStampBook() {
+  if (!els.stampList || !els.stampStatus) return;
+
+  const playCount = loadPlayCount();
+  const unlockedIds = new Set(loadUnlockedStampIds());
+  const sortedStamps = STAMPS.slice().sort((a, b) => Number(a.requiredPlays || 0) - Number(b.requiredPlays || 0));
+  const unlockedCount = sortedStamps.filter(stamp => unlockedIds.has(stamp.id)).length;
+
+  els.stampStatus.textContent = `プレイ回数: ${playCount}回 / 取得済み: ${unlockedCount}個 / 全${sortedStamps.length}個`;
+
+  if (!sortedStamps.length) {
+    els.stampList.innerHTML = `<p class="muted">スタンプデータがありません。</p>`;
+    return;
+  }
+
+  els.stampList.innerHTML = sortedStamps.map(stamp => {
+    const unlocked = unlockedIds.has(stamp.id);
+    const requiredPlays = Number(stamp.requiredPlays || 0);
+    const remaining = Math.max(0, requiredPlays - playCount);
+
+    if (unlocked) {
+      return `
+        <div class="stampCard acquired">
+          <img src="${escapeHtml(stamp.src)}" alt="${escapeHtml(stamp.name)}" />
+          <strong>${escapeHtml(stamp.name)}</strong>
+          <span>${escapeHtml(stamp.description || `${requiredPlays}回プレイ`)}</span>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="stampCard locked">
+        <div class="lockedStamp">?</div>
+        <strong>未取得</strong>
+        <span>${requiredPlays}回プレイで取得</span>
+        <small>あと${remaining}回</small>
+      </div>
+    `;
+  }).join("");
+}
 
 function clampInt(value, min, max, fallback) {
   const n = Number.parseInt(value, 10);
@@ -156,6 +273,7 @@ function startQuiz() {
   questions = createQuestions(settings);
   currentIndex = 0;
   correctCount = 0;
+  questionResults = [];
   startTime = performance.now();
   els.feedback.textContent = "";
   els.feedback.className = "feedback";
@@ -169,6 +287,7 @@ function showQuestion() {
   els.progressText.textContent = `${currentIndex + 1} / ${questions.length}`;
   els.progressBar.style.width = `${(currentIndex / questions.length) * 100}%`;
   els.questionText.textContent = `${q.text} = ?`;
+  questionStartTime = performance.now();
   clearAnswer();
 }
 
@@ -267,6 +386,12 @@ function submitAnswer(event) {
   const q = questions[currentIndex];
   const userAnswer = Number(answerText);
   const isCorrect = userAnswer === q.answer;
+  const questionSeconds = (performance.now() - questionStartTime) / 1000;
+
+  questionResults.push({
+    correct: isCorrect,
+    seconds: Number(questionSeconds.toFixed(2)),
+  });
 
   if (isCorrect) {
     correctCount++;
@@ -303,17 +428,25 @@ function getOperationDifficulty(operations) {
   return total / operations.length;
 }
 
-function calculateScore(correct, total, seconds, config) {
+function calculateScore(correct, total, seconds, config, perQuestionResults = []) {
   // 1問だけを高速で終わらせても高得点にならないように、正解した問題数そのものを主点にする。
-  // 難しい設定ほど倍率を上げ、タイムボーナスは問題数に比例する上限付きにする。
-  const accuracy = total > 0 ? correct / total : 0;
+  // タイムボーナスは「1問ごとの回答時間」で計算し、10秒を超えた問題は0点にする。
   const digitMultiplier = 1 + (config.digits - 1) * 0.75;
   const operationMultiplier = getOperationDifficulty(config.operations);
   const difficulty = digitMultiplier * operationMultiplier;
 
   const correctScore = correct * 100 * difficulty;
   const perfectBonus = correct === total ? total * 20 * difficulty : 0;
-  const speedBonus = Math.max(0, total * 30 * difficulty - seconds * 5) * accuracy;
+
+  const maxBonusPerQuestion = 30 * difficulty;
+  const speedBonus = perQuestionResults.reduce((sum, item) => {
+    if (!item.correct) return sum;
+    if (item.seconds > 10) return sum;
+
+    // 0秒に近いほど満点、10秒で0点。
+    const ratio = Math.max(0, (10 - item.seconds) / 10);
+    return sum + maxBonusPerQuestion * ratio;
+  }, 0);
 
   return Math.max(0, Math.round(correctScore + perfectBonus + speedBonus));
 }
@@ -321,7 +454,7 @@ function calculateScore(correct, total, seconds, config) {
 function finishQuiz() {
   stopTimer();
   const seconds = elapsedSeconds();
-  const score = calculateScore(correctCount, questions.length, seconds, settings);
+  const score = calculateScore(correctCount, questions.length, seconds, settings, questionResults);
 
   els.scoreText.textContent = `${score}点`;
   els.correctText.textContent = `${correctCount} / ${questions.length}`;
@@ -340,8 +473,13 @@ function finishQuiz() {
     deviceId: getDeviceId(),
   };
 
+  const playCount = incrementPlayCount();
+  const newlyUnlockedStamps = unlockEligibleStamps(playCount);
+
   saveLocalRanking(result);
   renderRanking(loadLocalRanking());
+  renderNewStamps(newlyUnlockedStamps);
+  renderStampBook();
   showOnly("result");
 
   syncRankingAfterResult(result);
@@ -589,5 +727,6 @@ window.addEventListener("online", refreshGlobalRanking);
 
 restorePlayerName();
 renderRanking(loadLocalRanking());
+renderStampBook();
 refreshGlobalRanking();
 registerServiceWorker();

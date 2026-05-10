@@ -110,6 +110,10 @@
         <div><span>正答数</span><strong id="correctText">0 / 10</strong></div>
         <div><span>タイム</span><strong id="timeText">0.0秒</strong></div>
       </div>
+      <div id="newStampArea" class="stampReward hidden">
+        <h3>新しいスタンプを取得！</h3>
+        <div id="newStampList" class="newStampList"></div>
+      </div>
       <div class="actions">
         <button id="retryButton" class="primary">もう一度</button>
         <button id="backButton">設定に戻る</button>
@@ -124,8 +128,19 @@
       <p id="rankingStatus" class="muted small">端末内ランキングを表示しています。</p>
       <ol id="rankingList" class="ranking"></ol>
     </section>
+
+    <section class="card">
+      <div class="stampHeader">
+        <div>
+          <h2>スタンプ帳</h2>
+          <p id="stampStatus" class="muted small">プレイ回数: 0回</p>
+        </div>
+      </div>
+      <div id="stampList" class="stampGrid" aria-label="取得済みスタンプ一覧"></div>
+    </section>
   </main>
 
+  <script src="stamps/stamps.js" defer></script>
   <script src="app.js" defer></script>
 </body>
 </html>

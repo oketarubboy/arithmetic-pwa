@@ -1,4 +1,4 @@
-const CACHE_NAME = "arithmetic-pwa-v5";
+const CACHE_NAME = "arithmetic-pwa-v7";
 const ASSETS = [
   "./",
   "./index.html",
@@ -6,7 +6,13 @@ const ASSETS = [
   "./app.js",
   "./manifest.json",
   "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icons/icon-512.png",
+  "./stamps/stamps.js",
+  "./stamps/stamp_01.png",
+  "./stamps/stamp_03.png",
+  "./stamps/stamp_05.png",
+  "./stamps/stamp_10.png",
+  "./stamps/stamp_20.png"
 ];
 
 self.addEventListener("install", event => {
