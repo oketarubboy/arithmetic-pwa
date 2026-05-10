@@ -15,7 +15,7 @@
       <div>
         <p class="eyebrow">Offline PWA</p>
         <h1>計算チャレンジ</h1>
-        <p class="muted">ランダムに出題される計算問題を解いて、正答数とタイムでスコアを出します。</p>
+        <p class="muted">ランダムに出題される計算問題を解いて、正答数・難易度・タイムでスコアを出します。</p>
       </div>
       <div class="badge" id="installState">PWA</div>
     </section>
@@ -23,6 +23,10 @@
     <section class="card" id="settingsPanel">
       <h2>設定</h2>
       <div class="grid">
+        <label>
+          プレイヤー名
+          <input id="playerName" type="text" maxlength="20" value="プレイヤー" />
+        </label>
         <label>
           問題数
           <input id="questionCount" type="number" min="1" max="100" value="10" />
@@ -113,8 +117,12 @@
     </section>
 
     <section class="card">
-      <h2>履歴</h2>
-      <ol id="historyList" class="history"></ol>
+      <div class="rankingHeader">
+        <h2>ランキング Top10</h2>
+        <button id="refreshRankingButton" type="button">更新</button>
+      </div>
+      <p id="rankingStatus" class="muted small">端末内ランキングを表示しています。</p>
+      <ol id="rankingList" class="ranking"></ol>
     </section>
   </main>
 

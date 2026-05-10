@@ -1,4 +1,4 @@
-const CACHE_NAME = "arithmetic-pwa-v3";
+const CACHE_NAME = "arithmetic-pwa-v5";
 const ASSETS = [
   "./",
   "./index.html",
@@ -10,23 +10,31 @@ const ASSETS = [
 ];
 
 self.addEventListener("install", event => {
+  self.skipWaiting();
+
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
   );
-  self.skipWaiting();
 });
 
 self.addEventListener("activate", event => {
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-    ))
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+      ))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
+
+  const requestUrl = new URL(event.request.url);
+
+  // Google Apps Scriptのランキング取得など、外部通信はキャッシュしない。
+  // ここで外部JSONPをキャッシュすると、ランキング更新ボタンを押しても古い結果が出る。
+  if (requestUrl.origin !== self.location.origin) return;
 
   event.respondWith(
     caches.match(event.request).then(cached => {

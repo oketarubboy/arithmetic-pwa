@@ -2,6 +2,7 @@ const els = {
   settingsPanel: document.getElementById("settingsPanel"),
   quizPanel: document.getElementById("quizPanel"),
   resultPanel: document.getElementById("resultPanel"),
+  playerName: document.getElementById("playerName"),
   questionCount: document.getElementById("questionCount"),
   digits: document.getElementById("digits"),
   noNegative: document.getElementById("noNegative"),
@@ -9,6 +10,7 @@ const els = {
   startButton: document.getElementById("startButton"),
   retryButton: document.getElementById("retryButton"),
   backButton: document.getElementById("backButton"),
+  refreshRankingButton: document.getElementById("refreshRankingButton"),
   progressText: document.getElementById("progressText"),
   timerText: document.getElementById("timerText"),
   progressBar: document.getElementById("progressBar"),
@@ -20,9 +22,19 @@ const els = {
   scoreText: document.getElementById("scoreText"),
   correctText: document.getElementById("correctText"),
   timeText: document.getElementById("timeText"),
-  historyList: document.getElementById("historyList"),
+  rankingList: document.getElementById("rankingList"),
+  rankingStatus: document.getElementById("rankingStatus"),
   installState: document.getElementById("installState"),
 };
+
+/*
+  Google Apps Script の「ウェブアプリURL」をここに貼り付けます。
+  例:
+  const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw_Sn5_nHYpD8GE9uIHjAHWUh0g2HzWlP6BOK3j7qQA1rWOcBxWNR5rZXYgjNh2l5r2TA/exec";
+
+  空欄のままなら、端末内ランキングだけで動きます。
+*/
+const GAS_WEB_APP_URL = "";
 
 let settings = null;
 let questions = [];
@@ -31,7 +43,11 @@ let correctCount = 0;
 let startTime = 0;
 let timerId = null;
 
-const STORAGE_KEY = "arithmetic-pwa-history-v1";
+const RANKING_STORAGE_KEY = "arithmetic-pwa-ranking-v1";
+const PLAYER_STORAGE_KEY = "arithmetic-pwa-player-name-v1";
+const DEVICE_STORAGE_KEY = "arithmetic-pwa-device-id-v1";
+const PENDING_RANKING_STORAGE_KEY = "arithmetic-pwa-pending-ranking-v1";
+const MAX_RANKING_ITEMS = 10;
 const MAX_ANSWER_LENGTH = 12;
 
 function clampInt(value, min, max, fallback) {
@@ -44,9 +60,27 @@ function getSelectedOperations() {
   return [...document.querySelectorAll('input[name="operation"]:checked')].map(x => x.value);
 }
 
+function getPlayerName() {
+  const name = (els.playerName.value || "").trim();
+  return name || "プレイヤー";
+}
+
+function getDeviceId() {
+  let id = localStorage.getItem(DEVICE_STORAGE_KEY);
+  if (!id) {
+    id = `ipad-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(DEVICE_STORAGE_KEY, id);
+  }
+  return id;
+}
+
 function getSettings() {
   const operations = getSelectedOperations();
+  const playerName = getPlayerName();
+  localStorage.setItem(PLAYER_STORAGE_KEY, playerName);
+
   return {
+    playerName,
     questionCount: clampInt(els.questionCount.value, 1, 100, 10),
     digits: clampInt(els.digits.value, 1, 5, 1),
     operations: operations.length ? operations : ["+"],
@@ -257,62 +291,273 @@ function submitAnswer(event) {
   }, 550);
 }
 
-function calculateScore(correct, total, seconds) {
-  // 正答率を重視し、タイムが速いほど少し加点。
-  // 全問正解・短時間ほど高得点になる。
-  const accuracyScore = (correct / total) * 1000;
-  const timeBonus = Math.max(0, 300 - seconds * 10);
-  return Math.round(accuracyScore + timeBonus);
+function getOperationDifficulty(operations) {
+  const weights = {
+    "+": 1.0,
+    "-": 1.0,
+    "×": 1.3,
+    "÷": 1.5,
+  };
+
+  const total = operations.reduce((sum, op) => sum + (weights[op] || 1), 0);
+  return total / operations.length;
+}
+
+function calculateScore(correct, total, seconds, config) {
+  // 1問だけを高速で終わらせても高得点にならないように、正解した問題数そのものを主点にする。
+  // 難しい設定ほど倍率を上げ、タイムボーナスは問題数に比例する上限付きにする。
+  const accuracy = total > 0 ? correct / total : 0;
+  const digitMultiplier = 1 + (config.digits - 1) * 0.75;
+  const operationMultiplier = getOperationDifficulty(config.operations);
+  const difficulty = digitMultiplier * operationMultiplier;
+
+  const correctScore = correct * 100 * difficulty;
+  const perfectBonus = correct === total ? total * 20 * difficulty : 0;
+  const speedBonus = Math.max(0, total * 30 * difficulty - seconds * 5) * accuracy;
+
+  return Math.max(0, Math.round(correctScore + perfectBonus + speedBonus));
 }
 
 function finishQuiz() {
   stopTimer();
   const seconds = elapsedSeconds();
-  const score = calculateScore(correctCount, questions.length, seconds);
+  const score = calculateScore(correctCount, questions.length, seconds, settings);
 
   els.scoreText.textContent = `${score}点`;
   els.correctText.textContent = `${correctCount} / ${questions.length}`;
   els.timeText.textContent = `${seconds.toFixed(1)}秒`;
 
-  saveHistory({
+  const result = {
     date: new Date().toLocaleString("ja-JP"),
+    timestamp: Date.now(),
+    playerName: settings.playerName,
     score,
     correct: correctCount,
     total: questions.length,
     seconds: Number(seconds.toFixed(1)),
     digits: settings.digits,
     operations: settings.operations.join(" "),
-  });
-  renderHistory();
+    deviceId: getDeviceId(),
+  };
+
+  saveLocalRanking(result);
+  renderRanking(loadLocalRanking());
   showOnly("result");
+
+  syncRankingAfterResult(result);
 }
 
-function saveHistory(result) {
-  const history = loadHistory();
-  history.unshift(result);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, 10)));
+function compareRanking(a, b) {
+  const scoreDiff = Number(b.score || 0) - Number(a.score || 0);
+  if (scoreDiff !== 0) return scoreDiff;
+
+  const correctDiff = Number(b.correct || 0) - Number(a.correct || 0);
+  if (correctDiff !== 0) return correctDiff;
+
+  const secondsDiff = Number(a.seconds || 999999) - Number(b.seconds || 999999);
+  if (secondsDiff !== 0) return secondsDiff;
+
+  return Number(b.timestamp || 0) - Number(a.timestamp || 0);
 }
 
-function loadHistory() {
+function saveLocalRanking(result) {
+  const ranking = loadLocalRanking();
+  ranking.push(result);
+  ranking.sort(compareRanking);
+  localStorage.setItem(RANKING_STORAGE_KEY, JSON.stringify(ranking.slice(0, MAX_RANKING_ITEMS)));
+}
+
+function loadLocalRanking() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    const ranking = JSON.parse(localStorage.getItem(RANKING_STORAGE_KEY)) || [];
+    return Array.isArray(ranking) ? ranking : [];
   } catch {
     return [];
   }
 }
 
-function renderHistory() {
-  const history = loadHistory();
-  if (!history.length) {
-    els.historyList.innerHTML = "<li>まだ履歴はありません。</li>";
+function hasGasEndpoint() {
+  return GAS_WEB_APP_URL && GAS_WEB_APP_URL.startsWith("https://script.google.com/macros/s/");
+}
+
+function setRankingStatus(text) {
+  els.rankingStatus.textContent = text;
+}
+
+async function syncRankingAfterResult(result) {
+  if (!hasGasEndpoint()) {
+    setRankingStatus("端末内ランキングを表示しています。全iPad共通ランキングにする場合は app.js にGoogle Apps ScriptのURLを設定してください。");
     return;
   }
-  els.historyList.innerHTML = history.map(item => `
+
+  if (!navigator.onLine) {
+    savePendingRanking(result);
+    setRankingStatus("オフラインのため端末内ランキングを表示しています。このスコアはオンライン復帰後に自動送信します。");
+    return;
+  }
+
+  setRankingStatus("全体ランキングへ送信中です...");
+  try {
+    await flushPendingRanking();
+    await submitGlobalRanking(result);
+    setRankingStatus("送信しました。全体ランキングを更新中です...");
+    setTimeout(refreshGlobalRanking, 1000);
+  } catch (error) {
+    console.warn("ランキング送信失敗", error);
+    savePendingRanking(result);
+    setRankingStatus("送信に失敗したため、端末内ランキングを表示しています。このスコアは次回オンライン時に再送信します。");
+  }
+}
+
+function loadPendingRanking() {
+  try {
+    const pending = JSON.parse(localStorage.getItem(PENDING_RANKING_STORAGE_KEY)) || [];
+    return Array.isArray(pending) ? pending : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePendingRanking(result) {
+  const pending = loadPendingRanking();
+  const key = `${result.timestamp}-${result.deviceId}-${result.score}`;
+  const exists = pending.some(item => `${item.timestamp}-${item.deviceId}-${item.score}` === key);
+  if (!exists) {
+    pending.push(result);
+  }
+  localStorage.setItem(PENDING_RANKING_STORAGE_KEY, JSON.stringify(pending.slice(-50)));
+}
+
+function clearPendingRanking() {
+  localStorage.removeItem(PENDING_RANKING_STORAGE_KEY);
+}
+
+async function flushPendingRanking() {
+  if (!hasGasEndpoint() || !navigator.onLine) return;
+
+  const pending = loadPendingRanking();
+  if (!pending.length) return;
+
+  for (const item of pending) {
+    await submitGlobalRanking(item);
+  }
+
+  clearPendingRanking();
+}
+
+async function submitGlobalRanking(result) {
+  const payload = {
+    action: "submit",
+    result,
+  };
+
+  // Apps ScriptはCORS制限が出やすいため、送信は no-cors にする。
+  // no-corsではレスポンス本文は読めないが、スコア送信用途では問題ない。
+  await fetch(GAS_WEB_APP_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8",
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+function refreshGlobalRanking() {
+  if (!hasGasEndpoint()) {
+    renderRanking(loadLocalRanking());
+    setRankingStatus("端末内ランキングを表示しています。");
+    return;
+  }
+
+  if (!navigator.onLine) {
+    renderRanking(loadLocalRanking());
+    setRankingStatus("オフラインのため端末内ランキングを表示しています。");
+    return;
+  }
+
+  setRankingStatus("全体ランキングを取得中です...");
+  flushPendingRanking()
+    .then(() => fetchGlobalRankingJsonp())
+    .then(data => {
+      if (!data || !data.ok) {
+        throw new Error(data && data.error ? data.error : "ランキング取得失敗");
+      }
+      const ranking = Array.isArray(data.ranking) ? data.ranking : [];
+      renderRanking(ranking);
+      setRankingStatus("全iPad共通ランキングを表示しています。");
+    })
+    .catch(error => {
+      console.warn("ランキング取得失敗", error);
+      renderRanking(loadLocalRanking());
+      setRankingStatus("全体ランキングを取得できないため、端末内ランキングを表示しています。");
+    });
+}
+
+function fetchGlobalRankingJsonp() {
+  return new Promise((resolve, reject) => {
+    const callbackName = `rankingCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const script = document.createElement("script");
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error("ランキング取得がタイムアウトしました"));
+    }, 10000);
+
+    function cleanup() {
+      clearTimeout(timeoutId);
+      delete window[callbackName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[callbackName] = data => {
+      cleanup();
+      resolve(data);
+    };
+
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("JSONP読み込みに失敗しました"));
+    };
+
+    const url = new URL(GAS_WEB_APP_URL);
+    url.searchParams.set("action", "ranking");
+    url.searchParams.set("callback", callbackName);
+    url.searchParams.set("t", String(Date.now()));
+
+    script.src = url.toString();
+    document.body.appendChild(script);
+  });
+}
+
+function renderRanking(ranking) {
+  const list = Array.isArray(ranking) ? ranking.slice().sort(compareRanking).slice(0, MAX_RANKING_ITEMS) : [];
+  if (!list.length) {
+    els.rankingList.innerHTML = "<li>まだランキングはありません。</li>";
+    return;
+  }
+
+  els.rankingList.innerHTML = list.map(item => `
     <li>
-      <strong>${item.score}点</strong> / ${item.correct}/${item.total}問 / ${item.seconds}秒
-      <br><small>${item.date}・${item.digits}桁・${item.operations}</small>
+      <strong>${escapeHtml(item.playerName || "プレイヤー")}：${Number(item.score || 0)}点</strong>
+      <br>${Number(item.correct || 0)}/${Number(item.total || 0)}問・${Number(item.seconds || 0)}秒
+      <br><small>${escapeHtml(item.date || "")}・${Number(item.digits || 1)}桁・${escapeHtml(item.operations || "")}</small>
     </li>
   `).join("");
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>'"]/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;",
+  }[char]));
+}
+
+function restorePlayerName() {
+  const saved = localStorage.getItem(PLAYER_STORAGE_KEY);
+  if (saved) els.playerName.value = saved;
 }
 
 async function registerServiceWorker() {
@@ -334,10 +579,15 @@ els.retryButton.addEventListener("click", startQuiz);
 els.backButton.addEventListener("click", () => showOnly("settings"));
 els.answerForm.addEventListener("submit", submitAnswer);
 els.keypad.addEventListener("click", handleKeypadClick);
+els.refreshRankingButton.addEventListener("click", refreshGlobalRanking);
 
 // iPadのソフトウェアキーボードを出さないため、答え欄はフォーカスされてもすぐ外す。
 els.answerInput.addEventListener("focus", () => els.answerInput.blur());
 els.answerInput.addEventListener("keydown", event => event.preventDefault());
 
-renderHistory();
+window.addEventListener("online", refreshGlobalRanking);
+
+restorePlayerName();
+renderRanking(loadLocalRanking());
+refreshGlobalRanking();
 registerServiceWorker();

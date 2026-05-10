@@ -68,7 +68,8 @@ h1, h2 { margin: 0 0 10px; }
 }
 
 label { display: block; font-weight: 700; }
-input[type="number"] {
+input[type="number"],
+input[type="text"] {
   width: 100%;
   margin-top: 6px;
   padding: 14px 12px;
@@ -214,8 +215,27 @@ button:active { transform: translateY(1px); }
 .resultGrid span { display: block; color: var(--muted); font-weight: 800; }
 .resultGrid strong { font-size: 24px; }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
-.history { padding-left: 1.4em; color: var(--muted); line-height: 1.9; }
-.history strong { color: var(--text); }
+
+.rankingHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.rankingHeader h2 { margin-bottom: 0; }
+.rankingHeader button {
+  padding: 10px 14px;
+  font-size: 15px;
+  border-radius: 999px;
+}
+.small {
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.ranking { padding-left: 1.4em; color: var(--muted); line-height: 1.9; }
+.ranking li { margin-bottom: 8px; }
+.ranking strong { color: var(--text); font-size: 1.08em; }
 
 @media (max-width: 520px) {
   .grid, .resultGrid { grid-template-columns: 1fr; }
