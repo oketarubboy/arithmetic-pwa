@@ -40,7 +40,7 @@ stamps/stamp_150.png
 const CACHE_NAME = "arithmetic-pwa-v9";
 ```
 
-PWAは古いファイルをキャッシュするため、更新時は `v9`, `v10` のように変更してください。
+PWAは古いファイルをキャッシュするため、更新時は `v9`, `v11` のように変更してください。
 
 ### 5. GitHub Pagesへアップロード
 

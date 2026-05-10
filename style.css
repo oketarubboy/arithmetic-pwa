@@ -98,35 +98,37 @@ fieldset {
   border-radius: 18px;
   padding: 14px;
 }
+fieldset.compactFieldset {
+  padding-bottom: 12px;
+}
 legend { font-weight: 800; padding: 0 6px; }
-.radioGrid {
+.modeButtons {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-.radioCard {
-  display: flex;
-  align-items: center;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  min-height: 52px;
-  padding: 12px;
+}
+.modeButton {
+  min-height: 46px;
+  padding: 8px 6px;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 14px;
   background: #fff;
-  font-weight: 800;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 900;
+  box-shadow: 0 4px 10px rgba(26, 42, 80, 0.06);
 }
-.radioCard input {
-  width: 20px;
-  height: 20px;
-  margin: 0;
+.modeButton.all {
+  font-size: 16px;
 }
-.radioCard:has(input:checked) {
+.modeButton.selected {
   border-color: #93c5fd;
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.24);
 }
-.radioCard.wide {
-  grid-column: 1 / -1;
+.modeButton:active {
+  transform: translateY(1px);
 }
 .digitSettings {
   align-items: end;
@@ -315,7 +317,10 @@ button:active { transform: translateY(1px); }
 }
 
 @media (max-width: 520px) {
-  .grid, .resultGrid, .radioGrid { grid-template-columns: 1fr; }
+  .grid, .resultGrid { grid-template-columns: 1fr; }
+  .modeButtons { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+  .modeButton { min-height: 42px; font-size: 17px; border-radius: 12px; }
+  .modeButton.all { font-size: 15px; }
   .hero { align-items: flex-start; }
   .card { padding: 16px; border-radius: 20px; }
   .app { padding: 14px; padding-bottom: calc(14px + env(safe-area-inset-bottom)); }

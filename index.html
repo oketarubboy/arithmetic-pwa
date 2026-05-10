@@ -33,16 +33,17 @@
         </label>
       </div>
 
-      <fieldset>
+      <fieldset class="compactFieldset">
         <legend>出題する計算</legend>
-        <div class="radioGrid">
-          <label class="radioCard"><input type="radio" name="calculationMode" value="add" checked /> たしざん</label>
-          <label class="radioCard"><input type="radio" name="calculationMode" value="sub" /> ひきざん</label>
-          <label class="radioCard"><input type="radio" name="calculationMode" value="mul" /> かけざん</label>
-          <label class="radioCard"><input type="radio" name="calculationMode" value="div" /> わりざん</label>
-          <label class="radioCard"><input type="radio" name="calculationMode" value="addsub" /> たしざん と ひきざん</label>
-          <label class="radioCard"><input type="radio" name="calculationMode" value="muldiv" /> かけざん と わりざん</label>
-          <label class="radioCard wide"><input type="radio" name="calculationMode" value="all" /> すべて</label>
+        <input type="hidden" id="calculationMode" value="add" />
+        <div class="modeButtons" role="group" aria-label="出題する計算">
+          <button type="button" class="modeButton selected" data-mode="add" aria-pressed="true">+</button>
+          <button type="button" class="modeButton" data-mode="sub" aria-pressed="false">−</button>
+          <button type="button" class="modeButton" data-mode="mul" aria-pressed="false">×</button>
+          <button type="button" class="modeButton" data-mode="div" aria-pressed="false">÷</button>
+          <button type="button" class="modeButton" data-mode="addsub" aria-pressed="false">+＆−</button>
+          <button type="button" class="modeButton" data-mode="muldiv" aria-pressed="false">×＆÷</button>
+          <button type="button" class="modeButton all" data-mode="all" aria-pressed="false">ぜんぶ</button>
         </div>
       </fieldset>
 

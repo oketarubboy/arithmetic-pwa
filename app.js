@@ -5,6 +5,8 @@ const els = {
   resultPanel: document.getElementById("resultPanel"),
   playerName: document.getElementById("playerName"),
   questionCount: document.getElementById("questionCount"),
+  calculationMode: document.getElementById("calculationMode"),
+  modeButtons: document.querySelectorAll(".modeButton"),
   operandCount: document.getElementById("operandCount"),
   digit1: document.getElementById("digit1"),
   digit2: document.getElementById("digit2"),
@@ -45,8 +47,8 @@ const els = {
 
   空欄のままなら、端末内ランキングだけで動きます。
 */
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbznxmnYI3VsxvMy9gnV8pRe9fZ4RRGGYREFNS3Wssy3Fr0Mu9r3cIy5lTVYorfmTOx_wQ/exec";
-const APP_VERSION = "v10";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw_Sn5_nHYpD8GE9uIHjAHWUh0g2HzWlP6BOK3j7qQA1rWOcBxWNR5rZXYgjNh2l5r2TA/exec";
+const APP_VERSION = "v11";
 const APP_CACHE_PREFIX = "arithmetic-pwa-";
 
 let settings = null;
@@ -193,7 +195,21 @@ const CALCULATION_MODES = {
 };
 
 function getCalculationMode() {
-  return document.querySelector('input[name="calculationMode"]:checked')?.value || "add";
+  return els.calculationMode?.value || "add";
+}
+
+function selectCalculationMode(mode) {
+  const safeMode = CALCULATION_MODES[mode] ? mode : "add";
+
+  if (els.calculationMode) {
+    els.calculationMode.value = safeMode;
+  }
+
+  els.modeButtons.forEach(button => {
+    const selected = button.dataset.mode === safeMode;
+    button.classList.toggle("selected", selected);
+    button.setAttribute("aria-pressed", selected ? "true" : "false");
+  });
 }
 
 function getSelectedOperations(mode = getCalculationMode()) {
@@ -961,6 +977,9 @@ els.keypad.addEventListener("click", handleKeypadClick);
 els.refreshRankingButton.addEventListener("click", refreshGlobalRanking);
 els.updateButton.addEventListener("click", forceUpdateApp);
 els.operandCount.addEventListener("change", updateDigitControls);
+els.modeButtons.forEach(button => {
+  button.addEventListener("click", () => selectCalculationMode(button.dataset.mode));
+});
 
 // iPadのソフトウェアキーボードを出さないため、答え欄はフォーカスされてもすぐ外す。
 els.answerInput.addEventListener("focus", () => els.answerInput.blur());
@@ -969,6 +988,7 @@ els.answerInput.addEventListener("keydown", event => event.preventDefault());
 window.addEventListener("online", refreshGlobalRanking);
 
 restorePlayerName();
+selectCalculationMode(getCalculationMode());
 updateDigitControls();
 renderRanking(loadLocalRanking());
 renderStampBook();
