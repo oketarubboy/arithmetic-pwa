@@ -276,6 +276,14 @@ button:active { transform: translateY(1px); }
   background: var(--answer-dark);
 }
 
+.startError {
+  min-height: 24px;
+  margin: 8px 0 0;
+  color: var(--danger);
+  font-weight: 900;
+  text-align: center;
+}
+
 .feedback {
   min-height: 28px;
   font-weight: 900;

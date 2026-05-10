@@ -1,4 +1,4 @@
-const CACHE_NAME = "arithmetic-pwa-v12";
+const CACHE_NAME = "arithmetic-pwa-v14";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,11 +8,36 @@ const ASSETS = [
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./stamps/stamps.js",
-  "./stamps/stamp_01.png",
-  "./stamps/stamp_03.png",
-  "./stamps/stamp_05.png",
-  "./stamps/stamp_10.png",
-  "./stamps/stamp_20.png"
+  "./stamps/1.png",
+  "./stamps/10.png",
+  "./stamps/30.png",
+  "./stamps/50.png",
+  "./stamps/100.png",
+  "./stamps/150.png",
+  "./stamps/200.png",
+  "./stamps/250.png",
+  "./stamps/300.png",
+  "./stamps/350.png",
+  "./stamps/400.png",
+  "./stamps/450.png",
+  "./stamps/500.png",
+  "./stamps/600.png",
+  "./stamps/700.png",
+  "./stamps/800.png",
+  "./stamps/900.png",
+  "./stamps/1000.png",
+  "./stamps/1250.png",
+  "./stamps/1500.png",
+  "./stamps/1750.png",
+  "./stamps/2000.png",
+  "./stamps/2500.png",
+  "./stamps/3000.png",
+  "./stamps/3500.png",
+  "./stamps/4000.png",
+  "./stamps/5000.png",
+  "./stamps/6000.png",
+  "./stamps/8000.png",
+  "./stamps/10000.png"
 ];
 
 const NETWORK_FIRST_PATHS = new Set([

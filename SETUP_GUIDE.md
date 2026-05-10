@@ -105,41 +105,48 @@ icons/
 - 身内で遊ぶランキング用途には十分です。
 - 本格的な不正対策が必要な場合は、Firebase Authenticationやサーバー側での署名検証が必要です。
 
-## 8. スタンプ画像を追加する方法
+## 8. スタンプ画像を追加・差し替えする方法
 
 この版では、累計正解数に応じてスタンプ画像を取得できます。
-スタンプ設定は `stamps/stamps.js` にまとめています。
+スタンプ枠は30個あり、設定は `stamps/stamps.js` にまとめています。
 
-### 追加手順
+### ファイル名ルール
 
-1. 追加したい画像を `stamps/` フォルダに入れる
+画像ファイル名は、必要正解数と同じ数字にしてください。
 
 例:
 
 ```text
-stamps/stamp_30.png
+累計150問正解 → stamps/150.png
+累計500問正解 → stamps/500.png
 ```
 
-2. `stamps/stamps.js` に設定を追加する
+### 画像を差し替える場合
+
+1. 差し替えたい画像を `stamps/` フォルダに入れる
 
 例:
 
+```text
+stamps/150.png
+```
+
+2. `stamps/stamps.js` の該当設定を確認する
+
 ```javascript
 {
-  id: "play-30",
-  name: "30回達成",
-  requiredCorrect: 30,
-  src: "stamps/stamp_30.png",
-  description: "30回プレイで取得"
+  id: "correct-150",
+  name: "150問達成",
+  requiredCorrect: 150,
+  src: "stamps/150.png",
+  description: "累計150問正解で取得"
 }
 ```
 
-既存の配列の最後に追加する場合は、1つ前の項目の末尾に `,` を付けてから追加してください。
-
-3. `service-worker.js` の `ASSETS` に画像パスを追加する
+3. `service-worker.js` の `ASSETS` に画像パスが入っていることを確認する
 
 ```javascript
-"./stamps/stamp_30.png"
+"./stamps/150.png"
 ```
 
 4. `service-worker.js` のキャッシュ名を変更する
@@ -147,7 +154,7 @@ stamps/stamp_30.png
 例:
 
 ```javascript
-const CACHE_NAME = "arithmetic-pwa-v8";
+const CACHE_NAME = "arithmetic-pwa-v15";
 ```
 
 5. GitHub Pagesへ以下を上書きアップロードする
@@ -158,16 +165,6 @@ style.css
 app.js
 manifest.json
 service-worker.js
-icons/
 stamps/
+icons/
 ```
-
-6. iPad側で更新する
-
-Safariで以下のように `?v=8` を付けて開いてから、PWAを開き直します。
-
-```text
-https://ユーザー名.github.io/arithmetic-pwa/?v=8
-```
-
-反映されない場合は、ホーム画面のPWAを削除し、SafariのWebサイトデータを削除してからホーム画面へ追加し直してください。

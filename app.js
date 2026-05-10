@@ -12,9 +12,8 @@ const els = {
   digit2: document.getElementById("digit2"),
   digit3: document.getElementById("digit3"),
   digit3Wrap: document.getElementById("digit3Wrap"),
-  noNegative: document.getElementById("noNegative"),
-  integerDivision: document.getElementById("integerDivision"),
   startButton: document.getElementById("startButton"),
+  startError: document.getElementById("startError"),
   retryButton: document.getElementById("retryButton"),
   backButton: document.getElementById("backButton"),
   refreshRankingButton: document.getElementById("refreshRankingButton"),
@@ -48,7 +47,7 @@ const els = {
   空欄のままなら、端末内ランキングだけで動きます。
 */
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw_Sn5_nHYpD8GE9uIHjAHWUh0g2HzWlP6BOK3j7qQA1rWOcBxWNR5rZXYgjNh2l5r2TA/exec";
-const APP_VERSION = "v12";
+const APP_VERSION = "v14";
 const APP_CACHE_PREFIX = "arithmetic-pwa-";
 
 let settings = null;
@@ -274,8 +273,11 @@ function getSettings() {
     digitPatternLabel: getDigitPatternLabel(digitList),
     maxDigits: Math.max(...digitList),
     operations,
-    noNegative: els.noNegative.checked,
-    integerDivision: els.integerDivision.checked,
+    // 画面上のチェック項目は廃止し、常に下記の状態で出題する。
+    // ・引き算は答えがマイナスにならない
+    // ・わり算は割り切れる問題だけ出す
+    noNegative: true,
+    integerDivision: true,
   };
 }
 
@@ -309,23 +311,61 @@ function formatQuestionText(numbers, op) {
   return numbers.join(` ${op} `);
 }
 
-function getOperationWeight(op) {
+function digitsOfNumber(value) {
+  const normalized = Math.abs(Math.trunc(Number(value) || 0));
+  return Math.max(1, String(normalized).length);
+}
+
+function getOperationWeight(op, digitList, numbers = null) {
+  const scoringDigits = numbers ? numbers.map(digitsOfNumber) : digitList;
+  const allOneDigit = scoringDigits.every(digit => digit === 1);
+
+  // 1桁同士のたしざん・ひきざん・わりざんは同じ基準点にする。
+  if ((op === "+" || op === "-" || op === "÷") && scoringDigits.length === 2 && allOneDigit) {
+    return 1.0;
+  }
+
+  if (op === "÷") {
+    const dividendDigits = scoringDigits[0];
+    const divisorDigits = scoringDigits.slice(1);
+    const sameDigitDivision = dividendDigits >= 2 && divisorDigits.every(digit => digit === dividendDigits);
+
+    // 2桁以上でも「同じ桁数同士のわり算」は答えが1桁になりやすいため低めにする。
+    if (sameDigitDivision) return 1.2;
+
+    return 2.05;
+  }
+
   const weights = {
     "+": 1.0,
     "-": 1.15,
     "×": 1.75,
-    "÷": 2.05,
   };
   return weights[op] || 1.0;
 }
 
-function getQuestionDifficulty(op, digitList, operandCount) {
+function getQuestionDifficulty(op, digitList, operandCount, numbers = null) {
   // 2つの1桁問題を標準難易度1.0とし、演算・桁数・数字の数で加点する。
-  const digitTotal = digitList.reduce((acc, digit) => acc + digit, 0);
+  // わり算は「1桁設定でも割られる数が2桁になる」ことがあるため、実際に出題された数字の桁数で採点する。
+  const scoringDigits = numbers ? numbers.map(digitsOfNumber) : digitList;
+  const digitTotal = scoringDigits.reduce((acc, digit) => acc + digit, 0);
   const extraDigitCount = Math.max(0, digitTotal - operandCount);
   const digitMultiplier = 1 + extraDigitCount * 0.55;
   const operandMultiplier = 1 + Math.max(0, operandCount - 2) * 0.45;
-  return getOperationWeight(op) * digitMultiplier * operandMultiplier;
+  return getOperationWeight(op, scoringDigits, numbers) * digitMultiplier * operandMultiplier;
+}
+
+function getDivisionValidationMessage(config) {
+  if (!config.operations.includes("÷")) return "";
+
+  const dividendDigits = config.digitList[0];
+  const maxDivisorDigits = Math.max(...config.digitList.slice(1));
+
+  if (dividendDigits < maxDivisorDigits) {
+    return "問題が作成できません";
+  }
+
+  return "";
 }
 
 function createAdditionQuestion(config, op) {
@@ -334,7 +374,7 @@ function createAdditionQuestion(config, op) {
     text: formatQuestionText(numbers, op),
     answer: sum(numbers),
     operation: op,
-    difficulty: getQuestionDifficulty(op, config.digitList, config.operandCount),
+    difficulty: getQuestionDifficulty(op, config.digitList, config.operandCount, numbers),
   };
 }
 
@@ -344,7 +384,7 @@ function createMultiplicationQuestion(config, op) {
     text: formatQuestionText(numbers, op),
     answer: product(numbers),
     operation: op,
-    difficulty: getQuestionDifficulty(op, config.digitList, config.operandCount),
+    difficulty: getQuestionDifficulty(op, config.digitList, config.operandCount, numbers),
   };
 }
 
@@ -362,7 +402,7 @@ function createSubtractionQuestion(config, op) {
         text: formatQuestionText(numbers, op),
         answer,
         operation: op,
-        difficulty: getQuestionDifficulty(op, config.digitList, config.operandCount),
+        difficulty: getQuestionDifficulty(op, config.digitList, config.operandCount, numbers),
       };
     }
   }
@@ -376,7 +416,7 @@ function createSubtractionQuestion(config, op) {
     text: formatQuestionText(numbers, op),
     answer,
     operation: op,
-    difficulty: getQuestionDifficulty(op, config.digitList, config.operandCount),
+    difficulty: getQuestionDifficulty(op, config.digitList, config.operandCount, numbers),
   };
 }
 
@@ -384,52 +424,80 @@ function divideValues(numbers) {
   return numbers.slice(1).reduce((answer, value) => answer / value, numbers[0]);
 }
 
+function randomDivisorByDigits(digits) {
+  if (digits === 1) return randomInt(2, 9);
+  return randomNumberByDigits(digits, false);
+}
+
 function createDivisionQuestion(config, op) {
+  const validationMessage = getDivisionValidationMessage(config);
+  if (validationMessage) throw new Error(validationMessage);
+
   const divisorDigits = config.digitList.slice(1);
+  const allOneDigitDivision = config.digitList.every(digit => digit === 1);
 
   if (config.integerDivision) {
-    // まずは指定された「1つ目の数字の桁数」を守ったまま、割り切れる組み合わせを探す。
-    for (let i = 0; i < 1200; i++) {
-      const first = randomNumberByDigits(config.digitList[0], false);
-      const divisors = divisorDigits.map(digit => randomNumberByDigits(digit, false));
-      const divisorProduct = product(divisors);
+    // 1桁わり算は、割られる数だけ2桁まで許可する。
+    // 例: 4÷2 のような1桁同士も、12÷3 / 56÷7 のような2桁÷1桁も出題する。
+    if (allOneDigitDivision) {
+      for (let i = 0; i < 1500; i++) {
+        const divisors = divisorDigits.map(digit => randomDivisorByDigits(digit));
+        const divisorProduct = product(divisors);
+        const answer = randomInt(1, 9);
+        const first = divisorProduct * answer;
 
-      if (divisorProduct !== 0 && first % divisorProduct === 0) {
-        const numbers = [first, ...divisors];
-        return {
-          text: formatQuestionText(numbers, op),
-          answer: first / divisorProduct,
-          operation: op,
-          difficulty: getQuestionDifficulty(op, config.digitList, config.operandCount),
-        };
+        if (first >= 1 && first <= 99) {
+          const numbers = [first, ...divisors];
+          return {
+            text: formatQuestionText(numbers, op),
+            answer,
+            operation: op,
+            difficulty: getQuestionDifficulty(op, config.digitList, config.operandCount, numbers),
+          };
+        }
       }
+
+      throw new Error("問題が作成できません");
     }
 
-    // 桁指定の組み合わせによって割り切れる問題が作りにくい場合の保険。
-    // この場合は割る数の桁数を優先し、1つ目の数字は答え×割る数で作る。
-    const divisors = divisorDigits.map(digit => randomNumberByDigits(digit, false));
-    const answerDigit = Math.max(1, Math.min(2, config.digitList[0]));
-    const answer = randomNumberByDigits(answerDigit, true);
-    const first = answer * product(divisors);
-    const numbers = [first, ...divisors];
+    // 指定された桁数を守り、答えが整数になる組み合わせを作る。
+    const firstMin = minByDigits(config.digitList[0]);
+    const firstMax = maxByDigits(config.digitList[0]);
 
-    return {
-      text: formatQuestionText(numbers, op),
-      answer,
-      operation: op,
-      difficulty: getQuestionDifficulty(op, config.digitList, config.operandCount),
-    };
+    for (let i = 0; i < 2000; i++) {
+      const divisors = divisorDigits.map(digit => randomDivisorByDigits(digit));
+      const divisorProduct = product(divisors);
+      if (divisorProduct <= 0 || divisorProduct > firstMax) continue;
+
+      const minAnswer = Math.max(1, Math.ceil(firstMin / divisorProduct));
+      const maxAnswer = Math.floor(firstMax / divisorProduct);
+      if (maxAnswer < minAnswer) continue;
+
+      const answer = randomInt(minAnswer, maxAnswer);
+      const first = answer * divisorProduct;
+      const numbers = [first, ...divisors];
+
+      return {
+        text: formatQuestionText(numbers, op),
+        answer,
+        operation: op,
+        difficulty: getQuestionDifficulty(op, config.digitList, config.operandCount, numbers),
+      };
+    }
+
+    throw new Error("問題が作成できません");
   }
 
-  const numbers = config.digitList.map((digit, index) => randomNumberByDigits(digit, index === 0));
-  const safeNumbers = numbers.map((number, index) => index > 0 && number === 0 ? 1 : number);
-  const answer = Number(divideValues(safeNumbers).toFixed(2));
+  const numbers = config.digitList.map((digit, index) => index === 0
+    ? randomNumberByDigits(digit, false)
+    : randomDivisorByDigits(digit));
+  const answer = Number(divideValues(numbers).toFixed(2));
 
   return {
-    text: formatQuestionText(safeNumbers, op),
+    text: formatQuestionText(numbers, op),
     answer,
     operation: op,
-    difficulty: getQuestionDifficulty(op, config.digitList, config.operandCount),
+    difficulty: getQuestionDifficulty(op, config.digitList, config.operandCount, numbers),
   };
 }
 
@@ -464,7 +532,23 @@ function scrollToPageTop() {
 
 function startQuiz() {
   settings = getSettings();
-  questions = createQuestions(settings);
+  const validationMessage = getDivisionValidationMessage(settings);
+
+  if (validationMessage) {
+    els.startError.textContent = validationMessage;
+    scrollToPageTop();
+    return;
+  }
+
+  try {
+    questions = createQuestions(settings);
+  } catch (error) {
+    els.startError.textContent = error.message || "問題が作成できません";
+    scrollToPageTop();
+    return;
+  }
+
+  els.startError.textContent = "";
   currentIndex = 0;
   correctCount = 0;
   questionResults = [];
