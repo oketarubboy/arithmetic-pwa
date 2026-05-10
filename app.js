@@ -45,7 +45,7 @@ const els = {
 
   空欄のままなら、端末内ランキングだけで動きます。
 */
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw_Sn5_nHYpD8GE9uIHjAHWUh0g2HzWlP6BOK3j7qQA1rWOcBxWNR5rZXYgjNh2l5r2TA/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbznxmnYI3VsxvMy9gnV8pRe9fZ4RRGGYREFNS3Wssy3Fr0Mu9r3cIy5lTVYorfmTOx_wQ/exec";
 const APP_VERSION = "v10";
 const APP_CACHE_PREFIX = "arithmetic-pwa-";
 
