@@ -15,7 +15,6 @@
       <div>
         <p class="eyebrow">Offline PWA</p>
         <h1>計算チャレンジ</h1>
-        <p class="muted">ランダムに出題される計算問題を解いて、正答数・難易度・タイムでスコアを出します。</p>
       </div>
       <div class="badge" id="installState">PWA</div>
     </section>
@@ -47,48 +46,49 @@
         </div>
       </fieldset>
 
-      <fieldset>
-        <legend>数字の数と桁数</legend>
-        <div class="grid digitSettings">
-          <label>
-            数字の数
-            <select id="operandCount">
-              <option value="2" selected>2つの数字</option>
-              <option value="3">3つの数字</option>
+      <fieldset class="digitCompactFieldset">
+        <legend>数字の数・桁数</legend>
+        <div class="digitCompact">
+          <label class="operandCompact">
+            <span>数字</span>
+            <select id="operandCount" aria-label="数字の数">
+              <option value="2" selected>2つ</option>
+              <option value="3">3つ</option>
             </select>
           </label>
-          <label>
-            1つ目の数字
-            <select id="digit1">
-              <option value="1" selected>1桁</option>
-              <option value="2">2桁</option>
-              <option value="3">3桁</option>
-              <option value="4">4桁</option>
-              <option value="5">5桁</option>
-            </select>
-          </label>
-          <label>
-            2つ目の数字
-            <select id="digit2">
-              <option value="1" selected>1桁</option>
-              <option value="2">2桁</option>
-              <option value="3">3桁</option>
-              <option value="4">4桁</option>
-              <option value="5">5桁</option>
-            </select>
-          </label>
-          <label id="digit3Wrap" class="hidden">
-            3つ目の数字
-            <select id="digit3">
-              <option value="1" selected>1桁</option>
-              <option value="2">2桁</option>
-              <option value="3">3桁</option>
-              <option value="4">4桁</option>
-              <option value="5">5桁</option>
-            </select>
-          </label>
+          <div class="digitMiniGroup" aria-label="各数字の桁数">
+            <label>
+              <span>①</span>
+              <select id="digit1" aria-label="1つ目の数字の桁数">
+                <option value="1" selected>1桁</option>
+                <option value="2">2桁</option>
+                <option value="3">3桁</option>
+                <option value="4">4桁</option>
+                <option value="5">5桁</option>
+              </select>
+            </label>
+            <label>
+              <span>②</span>
+              <select id="digit2" aria-label="2つ目の数字の桁数">
+                <option value="1" selected>1桁</option>
+                <option value="2">2桁</option>
+                <option value="3">3桁</option>
+                <option value="4">4桁</option>
+                <option value="5">5桁</option>
+              </select>
+            </label>
+            <label id="digit3Wrap" class="hidden">
+              <span>③</span>
+              <select id="digit3" aria-label="3つ目の数字の桁数">
+                <option value="1" selected>1桁</option>
+                <option value="2">2桁</option>
+                <option value="3">3桁</option>
+                <option value="4">4桁</option>
+                <option value="5">5桁</option>
+              </select>
+            </label>
+          </div>
         </div>
-        <p class="muted small">例：2桁と1桁にしたい場合は「1つ目の数字=2桁」「2つ目の数字=1桁」にします。3つの数字を選ぶと「1桁 + 1桁 + 1桁」のような問題にも対応します。</p>
       </fieldset>
 
       <label class="check">

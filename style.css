@@ -93,12 +93,13 @@ select {
 }
 
 fieldset {
-  margin: 16px 0;
+  margin: 14px 0;
   border: 1px solid var(--line);
   border-radius: 18px;
-  padding: 14px;
+  padding: 12px;
 }
-fieldset.compactFieldset {
+fieldset.compactFieldset,
+fieldset.digitCompactFieldset {
   padding-bottom: 12px;
 }
 legend { font-weight: 800; padding: 0 6px; }
@@ -130,8 +131,38 @@ legend { font-weight: 800; padding: 0 6px; }
 .modeButton:active {
   transform: translateY(1px);
 }
-.digitSettings {
+
+.digitCompact {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 10px;
   align-items: end;
+}
+.digitCompact label {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.digitCompact label span {
+  display: block;
+  margin: 0 0 4px;
+  font-weight: 900;
+}
+.digitCompact select {
+  margin-top: 0;
+  min-height: 44px;
+  padding: 10px 30px 10px 10px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 800;
+}
+.digitMiniGroup {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.digitMiniGroup label.hidden {
+  display: none;
 }
 
 .check {
@@ -321,7 +352,19 @@ button:active { transform: translateY(1px); }
   .modeButtons { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
   .modeButton { min-height: 42px; font-size: 17px; border-radius: 12px; }
   .modeButton.all { font-size: 15px; }
-  .hero { align-items: flex-start; }
+  .digitCompact {
+    grid-template-columns: 76px 1fr;
+    gap: 8px;
+  }
+  .digitMiniGroup { gap: 6px; }
+  .digitCompact select {
+    min-height: 42px;
+    padding-left: 8px;
+    padding-right: 26px;
+    font-size: 15px;
+    border-radius: 11px;
+  }
+  .hero { align-items: center; }
   .card { padding: 16px; border-radius: 20px; }
   .app { padding: 14px; padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
   .keypad { gap: 8px; }
