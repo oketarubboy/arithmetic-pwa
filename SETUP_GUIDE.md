@@ -59,7 +59,7 @@ https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXXXXXXXXXX/exec
 `app.js` のこの部分を探します。
 
 ```javascript
-const GAS_WEB_APP_URL = "";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw_Sn5_nHYpD8GE9uIHjAHWUh0g2HzWlP6BOK3j7qQA1rWOcBxWNR5rZXYgjNh2l5r2TA/exec";
 ```
 
 コピーしたWebアプリURLを貼り付けます。
@@ -107,7 +107,7 @@ icons/
 
 ## 8. スタンプ画像を追加する方法
 
-この版では、プレイ回数に応じてスタンプ画像を取得できます。
+この版では、累計正解数に応じてスタンプ画像を取得できます。
 スタンプ設定は `stamps/stamps.js` にまとめています。
 
 ### 追加手順
@@ -128,7 +128,7 @@ stamps/stamp_30.png
 {
   id: "play-30",
   name: "30回達成",
-  requiredPlays: 30,
+  requiredCorrect: 30,
   src: "stamps/stamp_30.png",
   description: "30回プレイで取得"
 }

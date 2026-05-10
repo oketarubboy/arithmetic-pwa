@@ -1,80 +1,61 @@
-# スタンプ機能の使い方
+# スタンプ画像を追加する手順
 
-## 概要
+このアプリでは、スタンプの取得条件を「累計正解数」で判定します。
 
-プレイ回数が指定回数に到達すると、スタンプ帳に画像スタンプが追加されます。
-取得状態はiPad端末内の `localStorage` に保存されます。
+## 例：累計150問正解で取得できるスタンプを追加する
 
-初期スタンプ:
+### 1. 画像ファイルを追加
 
-| スタンプ | 条件 |
-|---|---:|
-| はじめの一歩 | 1回プレイ |
-| れんしゅう中 | 3回プレイ |
-| 計算好き | 5回プレイ |
-| 10回チャレンジ | 10回プレイ |
-| 計算マスター | 20回プレイ |
-
-## スタンプ設定ファイル
-
-`stamps/stamps.js` を編集します。
-
-```javascript
-window.STAMP_DEFINITIONS = [
-  {
-    id: "play-1",
-    name: "はじめの一歩",
-    requiredPlays: 1,
-    src: "stamps/stamp_01.png",
-    description: "1回プレイで取得"
-  }
-];
-```
-
-## 画像追加手順
-
-1. 画像を `stamps/` フォルダに入れる
-2. `stamps/stamps.js` に設定を追加する
-3. `service-worker.js` の `ASSETS` に画像パスを追加する
-4. `service-worker.js` の `CACHE_NAME` を v8、v9 のように変更する
-5. GitHub Pagesへ上書きアップロードする
-6. iPadのSafariで `?v=更新番号` を付けて開く
-
-## 追加例
-
-画像ファイル:
+`stamps` フォルダに画像を追加します。
 
 ```text
-stamps/stamp_30.png
+stamps/stamp_150.png
 ```
 
-`stamps/stamps.js` に追加:
+推奨サイズは 512×512px のPNGです。
+
+### 2. `stamps/stamps.js` に設定を追加
 
 ```javascript
 {
-  id: "play-30",
-  name: "30回達成",
-  requiredPlays: 30,
-  src: "stamps/stamp_30.png",
-  description: "30回プレイで取得"
+  id: "correct-150",
+  name: "150問達成",
+  requiredCorrect: 150,
+  src: "stamps/stamp_150.png",
+  description: "累計150問正解で取得"
 }
 ```
 
-`service-worker.js` の `ASSETS` に追加:
+既存の配列の最後に追加する場合は、1つ前の要素の後ろにカンマ`,`を付けてください。
+
+### 3. `service-worker.js` の `ASSETS` に画像パスを追加
 
 ```javascript
-"./stamps/stamp_30.png"
+"./stamps/stamp_150.png",
 ```
 
-キャッシュ名を変更:
+### 4. キャッシュ名を変更
 
 ```javascript
-const CACHE_NAME = "arithmetic-pwa-v8";
+const CACHE_NAME = "arithmetic-pwa-v9";
+```
+
+PWAは古いファイルをキャッシュするため、更新時は `v9`, `v10` のように変更してください。
+
+### 5. GitHub Pagesへアップロード
+
+以下を上書きアップロードしてください。
+
+```text
+index.html
+style.css
+app.js
+manifest.json
+service-worker.js
+stamps/
+icons/
 ```
 
 ## 注意
 
-- 画像サイズは 512×512 PNG 推奨です。
-- 日本語ファイル名より、`stamp_30.png` のような半角英数字のファイル名を推奨します。
-- 端末内保存のため、iPadごとに取得済みスタンプは別管理です。
-- iPad間でスタンプ取得状況も共有したい場合は、ランキングと同じようにGoogleスプレッドシート側へプレイ回数や取得スタンプIDを保存する拡張が必要です。
+スタンプ取得状況と累計正解数は、iPad端末ごとのローカル保存です。複数台でスタンプ状況も共有したい場合は、Googleスプレッドシート側へ累計正解数または取得済みスタンプIDを保存する拡張が必要です。

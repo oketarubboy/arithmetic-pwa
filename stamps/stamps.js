@@ -1,39 +1,40 @@
 // スタンプ設定ファイル
 // 画像を追加したい場合は、この配列に1行追加し、service-worker.jsのASSETSにも画像パスを追加してください。
+// requiredCorrect は「累計正解数」です。
 window.STAMP_DEFINITIONS = [
   {
-    id: "play-1",
+    id: "correct-1",
     name: "はじめの一歩",
-    requiredPlays: 1,
+    requiredCorrect: 1,
     src: "stamps/stamp_01.png",
-    description: "1回プレイで取得"
+    description: "累計1問正解で取得"
   },
   {
-    id: "play-3",
+    id: "correct-10",
     name: "れんしゅう中",
-    requiredPlays: 3,
+    requiredCorrect: 10,
     src: "stamps/stamp_03.png",
-    description: "3回プレイで取得"
+    description: "累計10問正解で取得"
   },
   {
-    id: "play-5",
+    id: "correct-30",
     name: "計算好き",
-    requiredPlays: 5,
+    requiredCorrect: 30,
     src: "stamps/stamp_05.png",
-    description: "5回プレイで取得"
+    description: "累計30問正解で取得"
   },
   {
-    id: "play-10",
-    name: "10回チャレンジ",
-    requiredPlays: 10,
+    id: "correct-50",
+    name: "50問チャレンジ",
+    requiredCorrect: 50,
     src: "stamps/stamp_10.png",
-    description: "10回プレイで取得"
+    description: "累計50問正解で取得"
   },
   {
-    id: "play-20",
+    id: "correct-100",
     name: "計算マスター",
-    requiredPlays: 20,
+    requiredCorrect: 100,
     src: "stamps/stamp_20.png",
-    description: "20回プレイで取得"
+    description: "累計100問正解で取得"
   }
 ];

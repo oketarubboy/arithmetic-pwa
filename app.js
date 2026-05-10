@@ -1,4 +1,5 @@
 const els = {
+  heroPanel: document.getElementById("heroPanel"),
   settingsPanel: document.getElementById("settingsPanel"),
   quizPanel: document.getElementById("quizPanel"),
   resultPanel: document.getElementById("resultPanel"),
@@ -34,11 +35,11 @@ const els = {
 /*
   Google Apps Script の「ウェブアプリURL」をここに貼り付けます。
   例:
-  const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw_Sn5_nHYpD8GE9uIHjAHWUh0g2HzWlP6BOK3j7qQA1rWOcBxWNR5rZXYgjNh2l5r2TA/exec";
+  const GAS_WEB_APP_URL = "https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXX/exec";
 
   空欄のままなら、端末内ランキングだけで動きます。
 */
-const GAS_WEB_APP_URL = "";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw_Sn5_nHYpD8GE9uIHjAHWUh0g2HzWlP6BOK3j7qQA1rWOcBxWNR5rZXYgjNh2l5r2TA/exec";
 
 let settings = null;
 let questions = [];
@@ -55,22 +56,22 @@ const DEVICE_STORAGE_KEY = "arithmetic-pwa-device-id-v1";
 const PENDING_RANKING_STORAGE_KEY = "arithmetic-pwa-pending-ranking-v1";
 const MAX_RANKING_ITEMS = 10;
 const MAX_ANSWER_LENGTH = 12;
-const PLAY_COUNT_STORAGE_KEY = "arithmetic-pwa-play-count-v1";
-const STAMP_STORAGE_KEY = "arithmetic-pwa-unlocked-stamps-v1";
+const TOTAL_CORRECT_STORAGE_KEY = "arithmetic-pwa-total-correct-v1";
+const STAMP_STORAGE_KEY = "arithmetic-pwa-unlocked-stamps-v2";
 const STAMPS = Array.isArray(window.STAMP_DEFINITIONS) ? window.STAMP_DEFINITIONS : [];
 
-function loadPlayCount() {
-  const count = Number.parseInt(localStorage.getItem(PLAY_COUNT_STORAGE_KEY) || "0", 10);
+function loadTotalCorrectCount() {
+  const count = Number.parseInt(localStorage.getItem(TOTAL_CORRECT_STORAGE_KEY) || "0", 10);
   return Number.isNaN(count) ? 0 : count;
 }
 
-function savePlayCount(count) {
-  localStorage.setItem(PLAY_COUNT_STORAGE_KEY, String(Math.max(0, count)));
+function saveTotalCorrectCount(count) {
+  localStorage.setItem(TOTAL_CORRECT_STORAGE_KEY, String(Math.max(0, count)));
 }
 
-function incrementPlayCount() {
-  const next = loadPlayCount() + 1;
-  savePlayCount(next);
+function addTotalCorrectCount(correct) {
+  const next = loadTotalCorrectCount() + Math.max(0, Number(correct || 0));
+  saveTotalCorrectCount(next);
   return next;
 }
 
@@ -88,13 +89,13 @@ function saveUnlockedStampIds(ids) {
   localStorage.setItem(STAMP_STORAGE_KEY, JSON.stringify(uniqueIds));
 }
 
-function unlockEligibleStamps(playCount) {
+function unlockEligibleStamps(totalCorrectCount) {
   const unlocked = new Set(loadUnlockedStampIds());
   const newlyUnlocked = [];
 
   STAMPS.forEach(stamp => {
-    const requiredPlays = Number(stamp.requiredPlays || 0);
-    if (requiredPlays <= playCount && !unlocked.has(stamp.id)) {
+    const requiredCorrect = Number(stamp.requiredCorrect || 0);
+    if (requiredCorrect <= totalCorrectCount && !unlocked.has(stamp.id)) {
       unlocked.add(stamp.id);
       newlyUnlocked.push(stamp);
     }
@@ -121,7 +122,7 @@ function renderNewStamps(stamps) {
     <div class="stampMiniCard">
       <img src="${escapeHtml(stamp.src)}" alt="${escapeHtml(stamp.name)}" />
       <strong>${escapeHtml(stamp.name)}</strong>
-      <span>${escapeHtml(stamp.description || `${stamp.requiredPlays}回プレイ`)}</span>
+      <span>${escapeHtml(stamp.description || `${stamp.requiredCorrect}問正解`)}</span>
     </div>
   `).join("");
 }
@@ -129,12 +130,12 @@ function renderNewStamps(stamps) {
 function renderStampBook() {
   if (!els.stampList || !els.stampStatus) return;
 
-  const playCount = loadPlayCount();
+  const totalCorrectCount = loadTotalCorrectCount();
   const unlockedIds = new Set(loadUnlockedStampIds());
-  const sortedStamps = STAMPS.slice().sort((a, b) => Number(a.requiredPlays || 0) - Number(b.requiredPlays || 0));
+  const sortedStamps = STAMPS.slice().sort((a, b) => Number(a.requiredCorrect || 0) - Number(b.requiredCorrect || 0));
   const unlockedCount = sortedStamps.filter(stamp => unlockedIds.has(stamp.id)).length;
 
-  els.stampStatus.textContent = `プレイ回数: ${playCount}回 / 取得済み: ${unlockedCount}個 / 全${sortedStamps.length}個`;
+  els.stampStatus.textContent = `累計正解数: ${totalCorrectCount}問 / 取得済み: ${unlockedCount}個 / 全${sortedStamps.length}個`;
 
   if (!sortedStamps.length) {
     els.stampList.innerHTML = `<p class="muted">スタンプデータがありません。</p>`;
@@ -143,15 +144,15 @@ function renderStampBook() {
 
   els.stampList.innerHTML = sortedStamps.map(stamp => {
     const unlocked = unlockedIds.has(stamp.id);
-    const requiredPlays = Number(stamp.requiredPlays || 0);
-    const remaining = Math.max(0, requiredPlays - playCount);
+    const requiredCorrect = Number(stamp.requiredCorrect || 0);
+    const remaining = Math.max(0, requiredCorrect - totalCorrectCount);
 
     if (unlocked) {
       return `
         <div class="stampCard acquired">
           <img src="${escapeHtml(stamp.src)}" alt="${escapeHtml(stamp.name)}" />
           <strong>${escapeHtml(stamp.name)}</strong>
-          <span>${escapeHtml(stamp.description || `${requiredPlays}回プレイ`)}</span>
+          <span>${escapeHtml(stamp.description || `${requiredCorrect}問正解で取得`)}</span>
         </div>
       `;
     }
@@ -160,8 +161,8 @@ function renderStampBook() {
       <div class="stampCard locked">
         <div class="lockedStamp">?</div>
         <strong>未取得</strong>
-        <span>${requiredPlays}回プレイで取得</span>
-        <small>あと${remaining}回</small>
+        <span>${requiredCorrect}問正解で取得</span>
+        <small>あと${remaining}問</small>
       </div>
     `;
   }).join("");
@@ -263,9 +264,17 @@ function createQuestions(config) {
 }
 
 function showOnly(panelName) {
+  els.heroPanel.classList.toggle("hidden", panelName === "quiz");
   els.settingsPanel.classList.toggle("hidden", panelName !== "settings");
   els.quizPanel.classList.toggle("hidden", panelName !== "quiz");
   els.resultPanel.classList.toggle("hidden", panelName !== "result");
+}
+
+function scrollToPageTop() {
+  const scroll = () => window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  scroll();
+  requestAnimationFrame(scroll);
+  setTimeout(scroll, 80);
 }
 
 function startQuiz() {
@@ -278,6 +287,7 @@ function startQuiz() {
   els.feedback.textContent = "";
   els.feedback.className = "feedback";
   showOnly("quiz");
+  scrollToPageTop();
   showQuestion();
   startTimer();
 }
@@ -473,8 +483,8 @@ function finishQuiz() {
     deviceId: getDeviceId(),
   };
 
-  const playCount = incrementPlayCount();
-  const newlyUnlockedStamps = unlockEligibleStamps(playCount);
+  const totalCorrectCount = addTotalCorrectCount(correctCount);
+  const newlyUnlockedStamps = unlockEligibleStamps(totalCorrectCount);
 
   saveLocalRanking(result);
   renderRanking(loadLocalRanking());
