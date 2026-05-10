@@ -58,10 +58,44 @@
       </div>
       <div class="bar"><div id="progressBar"></div></div>
       <div class="question" id="questionText">1 + 2 = ?</div>
+
       <form id="answerForm" autocomplete="off">
-        <input id="answerInput" type="number" inputmode="numeric" placeholder="答え" />
-        <button class="primary" type="submit">回答</button>
+        <label class="answerLabel" for="answerInput">答え</label>
+        <input
+          id="answerInput"
+          class="answerDisplay"
+          type="text"
+          inputmode="none"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          readonly
+          placeholder="テンキーで入力"
+          aria-label="答え"
+        />
+        <div class="keypad" aria-label="画面内テンキー">
+          <button type="button" class="key" data-key="7">7</button>
+          <button type="button" class="key" data-key="8">8</button>
+          <button type="button" class="key" data-key="9">9</button>
+          <button type="button" class="key sub" data-key="back">⌫</button>
+
+          <button type="button" class="key" data-key="4">4</button>
+          <button type="button" class="key" data-key="5">5</button>
+          <button type="button" class="key" data-key="6">6</button>
+          <button type="button" class="key sub" data-key="clear">C</button>
+
+          <button type="button" class="key" data-key="1">1</button>
+          <button type="button" class="key" data-key="2">2</button>
+          <button type="button" class="key" data-key="3">3</button>
+          <button type="button" class="key sub" data-key="minus">−</button>
+
+          <button type="button" class="key zero" data-key="0">0</button>
+          <button type="button" class="key" data-key="decimal">.</button>
+          <button type="submit" class="key enter primary">回答</button>
+        </div>
       </form>
+
       <p id="feedback" class="feedback"></p>
     </section>
 

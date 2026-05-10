@@ -15,6 +15,7 @@ const els = {
   questionText: document.getElementById("questionText"),
   answerForm: document.getElementById("answerForm"),
   answerInput: document.getElementById("answerInput"),
+  keypad: document.querySelector(".keypad"),
   feedback: document.getElementById("feedback"),
   scoreText: document.getElementById("scoreText"),
   correctText: document.getElementById("correctText"),
@@ -31,6 +32,7 @@ let startTime = 0;
 let timerId = null;
 
 const STORAGE_KEY = "arithmetic-pwa-history-v1";
+const MAX_ANSWER_LENGTH = 12;
 
 function clampInt(value, min, max, fallback) {
   const n = Number.parseInt(value, 10);
@@ -133,8 +135,7 @@ function showQuestion() {
   els.progressText.textContent = `${currentIndex + 1} / ${questions.length}`;
   els.progressBar.style.width = `${(currentIndex / questions.length) * 100}%`;
   els.questionText.textContent = `${q.text} = ?`;
-  els.answerInput.value = "";
-  els.answerInput.focus();
+  clearAnswer();
 }
 
 function startTimer() {
@@ -153,10 +154,84 @@ function elapsedSeconds() {
   return (performance.now() - startTime) / 1000;
 }
 
+function clearAnswer() {
+  els.answerInput.value = "";
+}
+
+function appendAnswer(value) {
+  if (els.answerInput.value.length >= MAX_ANSWER_LENGTH) return;
+  els.answerInput.value += value;
+}
+
+function backspaceAnswer() {
+  els.answerInput.value = els.answerInput.value.slice(0, -1);
+}
+
+function toggleMinus() {
+  const value = els.answerInput.value;
+  if (value.startsWith("-")) {
+    els.answerInput.value = value.slice(1);
+  } else {
+    els.answerInput.value = `-${value}`;
+  }
+}
+
+function addDecimalPoint() {
+  if (els.answerInput.value.includes(".")) return;
+  if (els.answerInput.value === "" || els.answerInput.value === "-") {
+    els.answerInput.value += "0.";
+  } else {
+    els.answerInput.value += ".";
+  }
+}
+
+function handleKeypadClick(event) {
+  const button = event.target.closest("button[data-key]");
+  if (!button) return;
+
+  const key = button.dataset.key;
+
+  if (/^\d$/.test(key)) {
+    appendAnswer(key);
+    return;
+  }
+
+  if (key === "back") {
+    backspaceAnswer();
+    return;
+  }
+
+  if (key === "clear") {
+    clearAnswer();
+    return;
+  }
+
+  if (key === "minus") {
+    toggleMinus();
+    return;
+  }
+
+  if (key === "decimal") {
+    addDecimalPoint();
+  }
+}
+
+function isValidAnswerText(value) {
+  return value !== "" && value !== "-" && value !== "." && value !== "-." && !Number.isNaN(Number(value));
+}
+
 function submitAnswer(event) {
   event.preventDefault();
+
+  const answerText = els.answerInput.value.trim();
+  if (!isValidAnswerText(answerText)) {
+    els.feedback.textContent = "答えを入力してください";
+    els.feedback.className = "feedback ng";
+    return;
+  }
+
   const q = questions[currentIndex];
-  const userAnswer = Number(els.answerInput.value);
+  const userAnswer = Number(answerText);
   const isCorrect = userAnswer === q.answer;
 
   if (isCorrect) {
@@ -258,6 +333,11 @@ els.startButton.addEventListener("click", startQuiz);
 els.retryButton.addEventListener("click", startQuiz);
 els.backButton.addEventListener("click", () => showOnly("settings"));
 els.answerForm.addEventListener("submit", submitAnswer);
+els.keypad.addEventListener("click", handleKeypadClick);
+
+// iPadのソフトウェアキーボードを出さないため、答え欄はフォーカスされてもすぐ外す。
+els.answerInput.addEventListener("focus", () => els.answerInput.blur());
+els.answerInput.addEventListener("keydown", event => event.preventDefault());
 
 renderHistory();
 registerServiceWorker();
