@@ -469,3 +469,182 @@ button:active { transform: translateY(1px); }
   font-size: 42px;
   font-weight: 900;
 }
+
+.playerStampGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.9fr);
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+.stampSetBox {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+.selectedStampPreview {
+  min-width: 96px;
+  min-height: 56px;
+  display: grid;
+  place-items: center;
+}
+.selectedStampCard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 96px;
+  padding: 6px 8px;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  background: #eff6ff;
+}
+.selectedStampCard img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+.selectedStampCard strong,
+.selectedStampCard span {
+  display: block;
+  white-space: nowrap;
+}
+.selectedStampCard strong {
+  font-size: 13px;
+  color: var(--text);
+}
+.selectedStampCard span {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 800;
+}
+.selectedStampEmpty {
+  min-width: 82px;
+  padding: 12px 10px;
+  border-radius: 16px;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  background: #f8fafc;
+  font-size: 13px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.ranking {
+  list-style: none;
+  padding-left: 0;
+  margin: 12px 0 0;
+  display: grid;
+  gap: 8px;
+}
+.rankingItem {
+  display: grid;
+  grid-template-columns: 34px 52px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+}
+.rankingPlace {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: var(--primary);
+  font-weight: 900;
+}
+.rankingStamp,
+.rankingStampPlaceholder {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  object-fit: contain;
+}
+.rankingStampPlaceholder {
+  display: grid;
+  place-items: center;
+  background: #f3f4f6;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  font-weight: 900;
+}
+.rankingInfo {
+  min-width: 0;
+  line-height: 1.35;
+}
+.rankingInfo strong,
+.rankingInfo span,
+.rankingInfo small {
+  display: block;
+}
+.rankingInfo strong {
+  color: var(--text);
+  font-size: 15px;
+}
+.rankingInfo span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+.rankingInfo small {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stampCard.selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+.setStampButton {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  background: #dbeafe;
+  color: #1e40af;
+}
+.stampCard.selected .setStampButton {
+  background: var(--primary);
+  color: #fff;
+}
+
+@media (max-width: 620px) {
+  .playerStampGrid {
+    grid-template-columns: 1fr;
+  }
+  .stampSetBox {
+    grid-template-columns: 1fr auto;
+  }
+}
+
+@media (max-width: 420px) {
+  .rankingItem {
+    grid-template-columns: 30px 46px minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px;
+  }
+  .rankingPlace {
+    width: 30px;
+    height: 30px;
+  }
+  .rankingStamp,
+  .rankingStampPlaceholder {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+  }
+  .stampSetBox {
+    grid-template-columns: 1fr;
+  }
+  .selectedStampPreview {
+    justify-content: start;
+  }
+}

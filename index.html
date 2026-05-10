@@ -21,15 +21,22 @@
 
     <section class="card" id="settingsPanel">
       <h2>設定</h2>
-      <div class="grid">
-        <label>
+      <div class="playerStampGrid">
+        <label class="playerNameField">
           プレイヤー名
           <input id="playerName" type="text" maxlength="20" value="プレイヤー" />
         </label>
-        <label>
-          問題数
-          <input id="questionCount" type="number" min="1" max="100" value="10" />
-        </label>
+        <div class="stampSetBox">
+          <label>
+            セットするスタンプ
+            <select id="selectedStampSelect" aria-label="セットするスタンプ">
+              <option value="">セットなし</option>
+            </select>
+          </label>
+          <div id="selectedStampPreview" class="selectedStampPreview">
+            <div class="selectedStampEmpty">未セット</div>
+          </div>
+        </div>
       </div>
 
       <fieldset class="compactFieldset">
@@ -168,7 +175,7 @@
 
     <section class="card">
       <div class="rankingHeader">
-        <h2>ランキング Top10</h2>
+        <h2>ランキング Top5</h2>
         <button id="refreshRankingButton" type="button">更新</button>
       </div>
       <p id="rankingStatus" class="muted small">端末内ランキングを表示しています。</p>

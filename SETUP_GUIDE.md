@@ -2,7 +2,7 @@
 
 ## 目的
 
-Googleスプレッドシートをランキング保存先にして、複数台のiPadから同じTop10ランキングを表示します。
+Googleスプレッドシートをランキング保存先にして、複数台のiPadから同じTop5ランキングを表示します。
 
 構成:
 
@@ -12,7 +12,7 @@ iPadのPWA
 Google Apps Script
 ↓ 保存
 Googleスプレッドシート
-↓ Top10取得
+↓ Top5取得
 iPadのPWA
 ```
 
@@ -108,7 +108,7 @@ icons/
 ## 8. スタンプ画像を追加・差し替えする方法
 
 この版では、累計正解数に応じてスタンプ画像を取得できます。
-スタンプ枠は30個あり、設定は `stamps/stamps.js` にまとめています。
+スタンプ枠は40個あり、設定は `stamps/stamps.js` にまとめています。
 
 ### ファイル名ルール
 
@@ -118,7 +118,7 @@ icons/
 
 ```text
 累計150問正解 → stamps/150.png
-累計500問正解 → stamps/500.png
+累計400問正解 → stamps/400.png
 ```
 
 ### 画像を差し替える場合
@@ -136,28 +136,22 @@ stamps/150.png
 ```javascript
 {
   id: "correct-150",
-  name: "150問達成",
+  name: "イルカ",
   requiredCorrect: 150,
   src: "stamps/150.png",
   description: "累計150問正解で取得"
 }
 ```
 
-3. `service-worker.js` の `ASSETS` に画像パスが入っていることを確認する
-
-```javascript
-"./stamps/150.png"
-```
-
-4. `service-worker.js` のキャッシュ名を変更する
+3. `service-worker.js` のキャッシュ名を変更する
 
 例:
 
 ```javascript
-const CACHE_NAME = "arithmetic-pwa-v15";
+const CACHE_NAME = "arithmetic-pwa-v17";
 ```
 
-5. GitHub Pagesへ以下を上書きアップロードする
+4. GitHub Pagesへ以下を上書きアップロードする
 
 ```text
 index.html
@@ -168,3 +162,13 @@ service-worker.js
 stamps/
 icons/
 ```
+
+
+## v17の変更点
+
+- 問題数は10問固定です。設定画面の問題数入力欄はありません。
+- プレイヤー名の横に、取得済みスタンプをセットする欄を追加しました。
+- ランキングはTop5表示に変更しました。
+- ランキングに、プレイ時にセットしていたスタンプを表示するようにしました。
+- スタンプ条件は累計正解数10問〜400問まで、10問刻みの40個です。
+- スタンプ画像はZIP内に含めていません。`stamps` フォルダに `10.png` 〜 `400.png` を追加してください。

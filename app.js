@@ -4,7 +4,8 @@ const els = {
   quizPanel: document.getElementById("quizPanel"),
   resultPanel: document.getElementById("resultPanel"),
   playerName: document.getElementById("playerName"),
-  questionCount: document.getElementById("questionCount"),
+  selectedStampSelect: document.getElementById("selectedStampSelect"),
+  selectedStampPreview: document.getElementById("selectedStampPreview"),
   calculationMode: document.getElementById("calculationMode"),
   modeButtons: document.querySelectorAll(".modeButton"),
   operandCount: document.getElementById("operandCount"),
@@ -47,7 +48,7 @@ const els = {
   空欄のままなら、端末内ランキングだけで動きます。
 */
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw_Sn5_nHYpD8GE9uIHjAHWUh0g2HzWlP6BOK3j7qQA1rWOcBxWNR5rZXYgjNh2l5r2TA/exec";
-const APP_VERSION = "v16";
+const APP_VERSION = "v17";
 const APP_CACHE_PREFIX = "arithmetic-pwa-";
 
 let settings = null;
@@ -67,12 +68,101 @@ const PLAYER_STORAGE_KEY = "arithmetic-pwa-player-name-v1";
 const DEVICE_STORAGE_KEY = "arithmetic-pwa-device-id-v1";
 const PENDING_RANKING_STORAGE_KEY = "arithmetic-pwa-pending-ranking-v1";
 const SUBMITTED_RANKING_IDS_STORAGE_KEY = "arithmetic-pwa-submitted-ranking-ids-v1";
-const MAX_RANKING_ITEMS = 10;
+const MAX_RANKING_ITEMS = 5;
 const MAX_ANSWER_LENGTH = 20;
 const FIXED_QUESTION_COUNT = 10;
 const TOTAL_CORRECT_STORAGE_KEY = "arithmetic-pwa-total-correct-v1";
 const STAMP_STORAGE_KEY = "arithmetic-pwa-unlocked-stamps-v2";
+const SELECTED_STAMP_STORAGE_KEY = "arithmetic-pwa-selected-stamp-v1";
 const STAMPS = Array.isArray(window.STAMP_DEFINITIONS) ? window.STAMP_DEFINITIONS : [];
+
+function getSortedStamps() {
+  return STAMPS.slice().sort((a, b) => Number(a.requiredCorrect || 0) - Number(b.requiredCorrect || 0));
+}
+
+function getStampById(stampId) {
+  const id = String(stampId || "");
+  if (!id) return null;
+  return STAMPS.find(stamp => String(stamp.id) === id) || null;
+}
+
+function isStampUnlocked(stampId) {
+  if (!stampId) return false;
+  return loadUnlockedStampIds().includes(String(stampId));
+}
+
+function loadSelectedStampId() {
+  return localStorage.getItem(SELECTED_STAMP_STORAGE_KEY) || "";
+}
+
+function saveSelectedStampId(stampId) {
+  const id = String(stampId || "");
+  if (id && !isStampUnlocked(id)) return;
+  localStorage.setItem(SELECTED_STAMP_STORAGE_KEY, id);
+}
+
+function getSelectedStamp() {
+  const selectedId = loadSelectedStampId();
+  if (!selectedId || !isStampUnlocked(selectedId)) return null;
+  return getStampById(selectedId);
+}
+
+function renderSelectedStampPreview(stamp) {
+  if (!els.selectedStampPreview) return;
+
+  if (!stamp) {
+    els.selectedStampPreview.innerHTML = `<div class="selectedStampEmpty">未セット</div>`;
+    return;
+  }
+
+  els.selectedStampPreview.innerHTML = `
+    <div class="selectedStampCard">
+      <img src="${escapeHtml(stamp.src)}" alt="${escapeHtml(stamp.name)}" />
+      <div>
+        <strong>${escapeHtml(stamp.name)}</strong>
+        <span>${Number(stamp.requiredCorrect || 0)}問</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderSelectedStampSelector() {
+  if (!els.selectedStampSelect) return;
+
+  const unlockedIds = new Set(loadUnlockedStampIds());
+  const unlockedStamps = getSortedStamps().filter(stamp => unlockedIds.has(stamp.id));
+  let selectedId = loadSelectedStampId();
+
+  if (selectedId && !unlockedIds.has(selectedId)) {
+    selectedId = "";
+    localStorage.setItem(SELECTED_STAMP_STORAGE_KEY, "");
+  }
+
+  els.selectedStampSelect.innerHTML = [
+    `<option value="">セットなし</option>`,
+    ...unlockedStamps.map(stamp => `<option value="${escapeHtml(stamp.id)}">${escapeHtml(stamp.name)}（${Number(stamp.requiredCorrect || 0)}問）</option>`)
+  ].join("");
+  els.selectedStampSelect.value = selectedId;
+  renderSelectedStampPreview(getStampById(selectedId));
+}
+
+function setSelectedStamp(stampId) {
+  const id = String(stampId || "");
+  if (id && !isStampUnlocked(id)) return;
+  saveSelectedStampId(id);
+  renderSelectedStampSelector();
+  renderStampBook();
+}
+
+function getRankingStamp(item) {
+  const stampId = String(item.selectedStampId || item.stampId || "");
+  const stamp = getStampById(stampId);
+  const src = item.selectedStampSrc || item.stampSrc || (stamp ? stamp.src : "");
+  const name = item.selectedStampName || item.stampName || (stamp ? stamp.name : "");
+
+  if (!src && !name) return null;
+  return { src, name };
+}
 
 function loadTotalCorrectCount() {
   const count = Number.parseInt(localStorage.getItem(TOTAL_CORRECT_STORAGE_KEY) || "0", 10);
@@ -146,13 +236,15 @@ function renderStampBook() {
 
   const totalCorrectCount = loadTotalCorrectCount();
   const unlockedIds = new Set(loadUnlockedStampIds());
-  const sortedStamps = STAMPS.slice().sort((a, b) => Number(a.requiredCorrect || 0) - Number(b.requiredCorrect || 0));
+  const sortedStamps = getSortedStamps();
   const unlockedCount = sortedStamps.filter(stamp => unlockedIds.has(stamp.id)).length;
+  const selectedStampId = loadSelectedStampId();
 
   els.stampStatus.textContent = `累計正解数: ${totalCorrectCount}問 / 取得済み: ${unlockedCount}個 / 全${sortedStamps.length}個`;
 
   if (!sortedStamps.length) {
     els.stampList.innerHTML = `<p class="muted">スタンプデータがありません。</p>`;
+    renderSelectedStampSelector();
     return;
   }
 
@@ -162,11 +254,13 @@ function renderStampBook() {
     const remaining = Math.max(0, requiredCorrect - totalCorrectCount);
 
     if (unlocked) {
+      const selected = selectedStampId === stamp.id;
       return `
-        <div class="stampCard acquired">
+        <div class="stampCard acquired ${selected ? "selected" : ""}">
           <img src="${escapeHtml(stamp.src)}" alt="${escapeHtml(stamp.name)}" />
           <strong>${escapeHtml(stamp.name)}</strong>
           <span>${escapeHtml(stamp.description || `${requiredCorrect}問正解で取得`)}</span>
+          <button type="button" class="setStampButton" data-set-stamp="${escapeHtml(stamp.id)}">${selected ? "セット中" : "セット"}</button>
         </div>
       `;
     }
@@ -180,6 +274,7 @@ function renderStampBook() {
       </div>
     `;
   }).join("");
+  renderSelectedStampSelector();
 }
 
 function clampInt(value, min, max, fallback) {
@@ -744,6 +839,7 @@ function finishQuiz() {
   els.scoreText.textContent = `${score}点`;
   els.correctText.textContent = `${correctCount} / ${questions.length}`;
   els.timeText.textContent = `${seconds.toFixed(1)}秒`;
+  const selectedStamp = getSelectedStamp();
 
   const result = {
     date: new Date().toLocaleString("ja-JP"),
@@ -759,6 +855,9 @@ function finishQuiz() {
     operandCount: settings.operandCount,
     calculationMode: settings.calculationMode,
     operations: settings.calculationLabel,
+    selectedStampId: selectedStamp ? selectedStamp.id : "",
+    selectedStampName: selectedStamp ? selectedStamp.name : "",
+    selectedStampSrc: selectedStamp ? selectedStamp.src : "",
     deviceId: getDeviceId(),
   };
 
@@ -1012,13 +1111,24 @@ function renderRanking(ranking) {
     return;
   }
 
-  els.rankingList.innerHTML = list.map(item => `
-    <li>
-      <strong>${escapeHtml(item.playerName || "プレイヤー")}：${Number(item.score || 0)}点</strong>
-      <br>${Number(item.correct || 0)}/${Number(item.total || 0)}問・${Number(item.seconds || 0)}秒
-      <br><small>${escapeHtml(item.date || "")}・${escapeHtml(item.digitsLabel || `${Number(item.digits || 1)}桁`)}・${escapeHtml(item.operations || "")}</small>
-    </li>
-  `).join("");
+  els.rankingList.innerHTML = list.map((item, index) => {
+    const stamp = getRankingStamp(item);
+    const stampHtml = stamp && stamp.src
+      ? `<img class="rankingStamp" src="${escapeHtml(stamp.src)}" alt="${escapeHtml(stamp.name || "セット中スタンプ")}" />`
+      : `<div class="rankingStampPlaceholder">-</div>`;
+
+    return `
+      <li class="rankingItem">
+        <div class="rankingPlace">${index + 1}</div>
+        ${stampHtml}
+        <div class="rankingInfo">
+          <strong>${escapeHtml(item.playerName || "プレイヤー")}：${Number(item.score || 0)}点</strong>
+          <span>${Number(item.correct || 0)}/${Number(item.total || 0)}問・${Number(item.seconds || 0)}秒</span>
+          <small>${escapeHtml(item.date || "")}・${escapeHtml(item.digitsLabel || `${Number(item.digits || 1)}桁`)}・${escapeHtml(item.operations || "")}</small>
+        </div>
+      </li>
+    `;
+  }).join("");
 }
 
 function escapeHtml(value) {
@@ -1123,6 +1233,12 @@ els.answerForm.addEventListener("submit", submitAnswer);
 els.keypad.addEventListener("click", handleKeypadClick);
 els.refreshRankingButton.addEventListener("click", refreshGlobalRanking);
 els.updateButton.addEventListener("click", forceUpdateApp);
+els.selectedStampSelect.addEventListener("change", () => setSelectedStamp(els.selectedStampSelect.value));
+els.stampList.addEventListener("click", event => {
+  const button = event.target.closest("button[data-set-stamp]");
+  if (!button) return;
+  setSelectedStamp(button.dataset.setStamp || "");
+});
 els.operandCount.addEventListener("change", updateDigitControls);
 els.modeButtons.forEach(button => {
   button.addEventListener("click", () => selectCalculationMode(button.dataset.mode));
