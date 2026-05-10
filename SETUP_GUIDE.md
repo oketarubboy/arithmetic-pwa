@@ -1,173 +1,191 @@
-# 計算チャレンジPWA 全iPad共通ランキング設定手順
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#2563eb" />
+  <title>計算チャレンジ</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <section class="card hero" id="heroPanel">
+      <div>
+        <p class="eyebrow">Offline PWA</p>
+        <h1>計算チャレンジ</h1>
+        <p class="muted">ランダムに出題される計算問題を解いて、正答数・難易度・タイムでスコアを出します。</p>
+      </div>
+      <div class="badge" id="installState">PWA</div>
+    </section>
 
-## 目的
+    <section class="card" id="settingsPanel">
+      <h2>設定</h2>
+      <div class="grid">
+        <label>
+          プレイヤー名
+          <input id="playerName" type="text" maxlength="20" value="プレイヤー" />
+        </label>
+        <label>
+          問題数
+          <input id="questionCount" type="number" min="1" max="100" value="10" />
+        </label>
+      </div>
 
-Googleスプレッドシートをランキング保存先にして、複数台のiPadから同じTop10ランキングを表示します。
+      <fieldset>
+        <legend>出題する計算</legend>
+        <div class="radioGrid">
+          <label class="radioCard"><input type="radio" name="calculationMode" value="add" checked /> たしざん</label>
+          <label class="radioCard"><input type="radio" name="calculationMode" value="sub" /> ひきざん</label>
+          <label class="radioCard"><input type="radio" name="calculationMode" value="mul" /> かけざん</label>
+          <label class="radioCard"><input type="radio" name="calculationMode" value="div" /> わりざん</label>
+          <label class="radioCard"><input type="radio" name="calculationMode" value="addsub" /> たしざん と ひきざん</label>
+          <label class="radioCard"><input type="radio" name="calculationMode" value="muldiv" /> かけざん と わりざん</label>
+          <label class="radioCard wide"><input type="radio" name="calculationMode" value="all" /> すべて</label>
+        </div>
+      </fieldset>
 
-構成:
+      <fieldset>
+        <legend>数字の数と桁数</legend>
+        <div class="grid digitSettings">
+          <label>
+            数字の数
+            <select id="operandCount">
+              <option value="2" selected>2つの数字</option>
+              <option value="3">3つの数字</option>
+            </select>
+          </label>
+          <label>
+            1つ目の数字
+            <select id="digit1">
+              <option value="1" selected>1桁</option>
+              <option value="2">2桁</option>
+              <option value="3">3桁</option>
+              <option value="4">4桁</option>
+              <option value="5">5桁</option>
+            </select>
+          </label>
+          <label>
+            2つ目の数字
+            <select id="digit2">
+              <option value="1" selected>1桁</option>
+              <option value="2">2桁</option>
+              <option value="3">3桁</option>
+              <option value="4">4桁</option>
+              <option value="5">5桁</option>
+            </select>
+          </label>
+          <label id="digit3Wrap" class="hidden">
+            3つ目の数字
+            <select id="digit3">
+              <option value="1" selected>1桁</option>
+              <option value="2">2桁</option>
+              <option value="3">3桁</option>
+              <option value="4">4桁</option>
+              <option value="5">5桁</option>
+            </select>
+          </label>
+        </div>
+        <p class="muted small">例：2桁と1桁にしたい場合は「1つ目の数字=2桁」「2つ目の数字=1桁」にします。3つの数字を選ぶと「1桁 + 1桁 + 1桁」のような問題にも対応します。</p>
+      </fieldset>
 
-```text
-iPadのPWA
-↓ スコア送信
-Google Apps Script
-↓ 保存
-Googleスプレッドシート
-↓ Top10取得
-iPadのPWA
-```
+      <label class="check">
+        <input id="noNegative" type="checkbox" checked /> 引き算は答えがマイナスにならないようにする
+      </label>
+      <label class="check">
+        <input id="integerDivision" type="checkbox" checked /> わり算は割り切れる問題だけ出す
+      </label>
 
-## 1. Googleスプレッドシートを作成する
+      <button id="startButton" class="primary">スタート</button>
+    </section>
 
-1. Googleドライブを開く
-2. 新規 → Googleスプレッドシート
-3. ファイル名を `計算チャレンジランキング` などに変更
+    <section class="card hidden" id="quizPanel">
+      <div class="progressRow">
+        <span id="progressText">1 / 10</span>
+        <span id="timerText">0.0秒</span>
+      </div>
+      <div class="bar"><div id="progressBar"></div></div>
+      <div class="question" id="questionText">1 + 2 = ?</div>
 
-シート名は自動で `Ranking` が作成されるため、手動で列を作る必要はありません。
+      <form id="answerForm" autocomplete="off">
+        <label class="answerLabel" for="answerInput">答え</label>
+        <input
+          id="answerInput"
+          class="answerDisplay"
+          type="text"
+          inputmode="none"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          readonly
+          placeholder="テンキーで入力"
+          aria-label="答え"
+        />
+        <div class="keypad" aria-label="画面内テンキー">
+          <button type="button" class="key" data-key="7">7</button>
+          <button type="button" class="key" data-key="8">8</button>
+          <button type="button" class="key" data-key="9">9</button>
+          <button type="button" class="key sub" data-key="back">⌫</button>
 
-## 2. Apps Scriptを作成する
+          <button type="button" class="key" data-key="4">4</button>
+          <button type="button" class="key" data-key="5">5</button>
+          <button type="button" class="key" data-key="6">6</button>
+          <button type="button" class="key sub" data-key="clear">C</button>
 
-1. スプレッドシート上部の `拡張機能`
-2. `Apps Script`
-3. `Code.gs` の中身を、このZIP内の `google-apps-script/Code.gs` に置き換える
-4. 保存
+          <button type="button" class="key" data-key="1">1</button>
+          <button type="button" class="key" data-key="2">2</button>
+          <button type="button" class="key" data-key="3">3</button>
+          <button type="button" class="key sub" data-key="minus">−</button>
 
-## 3. Webアプリとしてデプロイする
+          <button type="button" class="key zero" data-key="0">0</button>
+          <button type="button" class="key" data-key="decimal">.</button>
+          <button type="submit" class="key enter primary">回答</button>
+        </div>
+      </form>
 
-1. Apps Script画面右上の `デプロイ`
-2. `新しいデプロイ`
-3. 種類の選択で `ウェブアプリ`
-4. 設定を以下にする
+      <p id="feedback" class="feedback"></p>
+    </section>
 
-```text
-説明: ranking-api-v1
-実行するユーザー: 自分
-アクセスできるユーザー: 全員
-```
+    <section class="card hidden" id="resultPanel">
+      <h2>結果</h2>
+      <div class="score" id="scoreText">0点</div>
+      <div class="resultGrid">
+        <div><span>正答数</span><strong id="correctText">0 / 10</strong></div>
+        <div><span>タイム</span><strong id="timeText">0.0秒</strong></div>
+      </div>
+      <div id="newStampArea" class="stampReward hidden">
+        <h3>新しいスタンプを取得！</h3>
+        <div id="newStampList" class="newStampList"></div>
+      </div>
+      <div class="actions">
+        <button id="retryButton" class="primary">もう一度</button>
+        <button id="backButton">設定に戻る</button>
+      </div>
+    </section>
 
-5. `デプロイ`
-6. 初回は権限の承認を行う
-7. 表示された `ウェブアプリURL` をコピーする
+    <section class="card">
+      <div class="rankingHeader">
+        <h2>ランキング Top10</h2>
+        <button id="refreshRankingButton" type="button">更新</button>
+      </div>
+      <p id="rankingStatus" class="muted small">端末内ランキングを表示しています。</p>
+      <ol id="rankingList" class="ranking"></ol>
+    </section>
 
-URL例:
+    <section class="card">
+      <div class="stampHeader">
+        <div>
+          <h2>スタンプ帳</h2>
+          <p id="stampStatus" class="muted small">累計正解数: 0問</p>
+        </div>
+      </div>
+      <div id="stampList" class="stampGrid" aria-label="取得済みスタンプ一覧"></div>
+    </section>
+  </main>
 
-```text
-https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXXXXXXXXXX/exec
-```
-
-## 4. PWA側にURLを設定する
-
-`app.js` のこの部分を探します。
-
-```javascript
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw_Sn5_nHYpD8GE9uIHjAHWUh0g2HzWlP6BOK3j7qQA1rWOcBxWNR5rZXYgjNh2l5r2TA/exec";
-```
-
-コピーしたWebアプリURLを貼り付けます。
-
-```javascript
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXXXXXXXXXX/exec";
-```
-
-## 5. GitHub Pagesへアップロードする
-
-以下のファイルをGitHub Pagesのリポジトリにアップロードします。
-
-```text
-index.html
-style.css
-app.js
-manifest.json
-service-worker.js
-icons/
-```
-
-`google-apps-script/` と `SETUP_GUIDE.md` は説明用なので、GitHub Pagesにアップロードしなくても動きます。
-
-## 6. iPadで更新する
-
-1. iPadのSafariでGitHub PagesのURLを開く
-2. 画面を更新
-3. ホーム画面のPWAを閉じて開き直す
-4. 反映されない場合は、PWAアイコン削除 → SafariのWebサイトデータ削除 → ホーム画面に追加し直す
-
-## 7. 動作確認
-
-1. iPad Aでプレイ
-2. 結果画面でスコア送信
-3. iPad Bでランキングの `更新` ボタンを押す
-4. iPad Aのスコアが表示されれば成功
-
-## 注意点
-
-- オフライン中は端末内ランキングが表示されます。
-- オフライン中に出したスコアは端末内に一時保存され、オンライン復帰後に自動送信されます。
-- GitHub Pagesに置いたJavaScriptは利用者から見えるため、完全な不正対策はできません。
-- 身内で遊ぶランキング用途には十分です。
-- 本格的な不正対策が必要な場合は、Firebase Authenticationやサーバー側での署名検証が必要です。
-
-## 8. スタンプ画像を追加する方法
-
-この版では、累計正解数に応じてスタンプ画像を取得できます。
-スタンプ設定は `stamps/stamps.js` にまとめています。
-
-### 追加手順
-
-1. 追加したい画像を `stamps/` フォルダに入れる
-
-例:
-
-```text
-stamps/stamp_30.png
-```
-
-2. `stamps/stamps.js` に設定を追加する
-
-例:
-
-```javascript
-{
-  id: "play-30",
-  name: "30回達成",
-  requiredCorrect: 30,
-  src: "stamps/stamp_30.png",
-  description: "30回プレイで取得"
-}
-```
-
-既存の配列の最後に追加する場合は、1つ前の項目の末尾に `,` を付けてから追加してください。
-
-3. `service-worker.js` の `ASSETS` に画像パスを追加する
-
-```javascript
-"./stamps/stamp_30.png"
-```
-
-4. `service-worker.js` のキャッシュ名を変更する
-
-例:
-
-```javascript
-const CACHE_NAME = "arithmetic-pwa-v8";
-```
-
-5. GitHub Pagesへ以下を上書きアップロードする
-
-```text
-index.html
-style.css
-app.js
-manifest.json
-service-worker.js
-icons/
-stamps/
-```
-
-6. iPad側で更新する
-
-Safariで以下のように `?v=8` を付けて開いてから、PWAを開き直します。
-
-```text
-https://ユーザー名.github.io/arithmetic-pwa/?v=8
-```
-
-反映されない場合は、ホーム画面のPWAを削除し、SafariのWebサイトデータを削除してからホーム画面へ追加し直してください。
+  <script src="stamps/stamps.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
