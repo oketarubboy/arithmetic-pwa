@@ -35,6 +35,7 @@ const els = {
   newStampList: document.getElementById("newStampList"),
   stampStatus: document.getElementById("stampStatus"),
   stampList: document.getElementById("stampList"),
+  resetStampButton: document.getElementById("resetStampButton"),
   installState: document.getElementById("installState"),
   updateButton: document.getElementById("updateButton"),
   updateStatus: document.getElementById("updateStatus"),
@@ -48,7 +49,7 @@ const els = {
   空欄のままなら、端末内ランキングだけで動きます。
 */
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw_Sn5_nHYpD8GE9uIHjAHWUh0g2HzWlP6BOK3j7qQA1rWOcBxWNR5rZXYgjNh2l5r2TA/exec";
-const APP_VERSION = "v17";
+const APP_VERSION = "v18";
 const APP_CACHE_PREFIX = "arithmetic-pwa-";
 
 let settings = null;
@@ -152,6 +153,23 @@ function setSelectedStamp(stampId) {
   saveSelectedStampId(id);
   renderSelectedStampSelector();
   renderStampBook();
+}
+
+function resetUnlockedStamps() {
+  const confirmed = window.confirm(
+    "獲得済みスタンプと累計正解数をリセットします。ランキングは削除されません。よろしいですか？"
+  );
+  if (!confirmed) return;
+
+  localStorage.removeItem(TOTAL_CORRECT_STORAGE_KEY);
+  localStorage.removeItem(STAMP_STORAGE_KEY);
+  localStorage.removeItem(SELECTED_STAMP_STORAGE_KEY);
+
+  renderNewStamps([]);
+  renderSelectedStampSelector();
+  renderStampBook();
+
+  window.alert("スタンプをリセットしました。");
 }
 
 function getRankingStamp(item) {
@@ -1233,6 +1251,9 @@ els.answerForm.addEventListener("submit", submitAnswer);
 els.keypad.addEventListener("click", handleKeypadClick);
 els.refreshRankingButton.addEventListener("click", refreshGlobalRanking);
 els.updateButton.addEventListener("click", forceUpdateApp);
+if (els.resetStampButton) {
+  els.resetStampButton.addEventListener("click", resetUnlockedStamps);
+}
 els.selectedStampSelect.addEventListener("change", () => setSelectedStamp(els.selectedStampSelect.value));
 els.stampList.addEventListener("click", event => {
   const button = event.target.closest("button[data-set-stamp]");
