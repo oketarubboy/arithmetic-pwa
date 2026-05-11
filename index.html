@@ -102,10 +102,6 @@
       <button id="startButton" class="primary">スタート</button>
       <p id="startError" class="startError" role="alert"></p>
 
-      <div class="updateBox">
-        <button id="updateButton" type="button" class="ghostButton">最新版に更新</button>
-        <p id="updateStatus" class="muted small">通常は自動更新されます。表示がおかしい時だけ押してください。</p>
-      </div>
     </section>
 
     <section class="card hidden" id="quizPanel">
@@ -190,8 +186,25 @@
         </div>
       </div>
       <div id="stampList" class="stampGrid" aria-label="取得済みスタンプ一覧"></div>
+      <div class="stampFooterActions">
+        <button id="resetStampButton" type="button" class="dangerGhostButton stampResetButton">スタンプをリセット</button>
+        <div class="updateBox stampUpdateBox">
+          <button id="updateButton" type="button" class="ghostButton">最新版に更新</button>
+          <p id="updateStatus" class="muted small">通常は自動更新されます。表示がおかしい時だけ押してください。</p>
+        </div>
+      </div>
     </section>
   </main>
+
+  <div id="stampModal" class="stampModal hidden" role="dialog" aria-modal="true" aria-labelledby="stampModalTitle">
+    <div class="stampModalBackdrop" data-close-stamp-modal="true"></div>
+    <div class="stampModalContent">
+      <button id="stampModalClose" type="button" class="stampModalClose" aria-label="閉じる">×</button>
+      <img id="stampModalImage" src="" alt="" />
+      <h3 id="stampModalTitle"></h3>
+      <p id="stampModalDescription" class="muted small"></p>
+    </div>
+  </div>
 
   <script src="stamps/stamps.js" defer></script>
   <script src="app.js" defer></script>

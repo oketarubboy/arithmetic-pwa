@@ -39,6 +39,11 @@ const els = {
   installState: document.getElementById("installState"),
   updateButton: document.getElementById("updateButton"),
   updateStatus: document.getElementById("updateStatus"),
+  stampModal: document.getElementById("stampModal"),
+  stampModalImage: document.getElementById("stampModalImage"),
+  stampModalTitle: document.getElementById("stampModalTitle"),
+  stampModalDescription: document.getElementById("stampModalDescription"),
+  stampModalClose: document.getElementById("stampModalClose"),
 };
 
 /*
@@ -49,7 +54,7 @@ const els = {
   空欄のままなら、端末内ランキングだけで動きます。
 */
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw_Sn5_nHYpD8GE9uIHjAHWUh0g2HzWlP6BOK3j7qQA1rWOcBxWNR5rZXYgjNh2l5r2TA/exec";
-const APP_VERSION = "v18";
+const APP_VERSION = "v19";
 const APP_CACHE_PREFIX = "arithmetic-pwa-";
 
 let settings = null;
@@ -274,7 +279,7 @@ function renderStampBook() {
     if (unlocked) {
       const selected = selectedStampId === stamp.id;
       return `
-        <div class="stampCard acquired ${selected ? "selected" : ""}">
+        <div class="stampCard acquired ${selected ? "selected" : ""}" data-preview-stamp="${escapeHtml(stamp.id)}" role="button" tabindex="0" aria-label="${escapeHtml(stamp.name)}を拡大表示">
           <img src="${escapeHtml(stamp.src)}" alt="${escapeHtml(stamp.name)}" />
           <strong>${escapeHtml(stamp.name)}</strong>
           <span>${escapeHtml(stamp.description || `${requiredCorrect}問正解で取得`)}</span>
@@ -293,6 +298,31 @@ function renderStampBook() {
     `;
   }).join("");
   renderSelectedStampSelector();
+}
+
+function openStampModal(stampId) {
+  const stamp = getStampById(stampId);
+  if (!stamp || !isStampUnlocked(stamp.id) || !els.stampModal) return;
+
+  if (els.stampModalImage) {
+    els.stampModalImage.src = stamp.src;
+    els.stampModalImage.alt = stamp.name;
+  }
+  if (els.stampModalTitle) {
+    els.stampModalTitle.textContent = stamp.name;
+  }
+  if (els.stampModalDescription) {
+    els.stampModalDescription.textContent = stamp.description || `${Number(stamp.requiredCorrect || 0)}問正解で取得`;
+  }
+
+  els.stampModal.classList.remove("hidden");
+  document.body.classList.add("modalOpen");
+}
+
+function closeStampModal() {
+  if (!els.stampModal) return;
+  els.stampModal.classList.add("hidden");
+  document.body.classList.remove("modalOpen");
 }
 
 function clampInt(value, min, max, fallback) {
@@ -1250,15 +1280,43 @@ els.backButton.addEventListener("click", () => showOnly("settings"));
 els.answerForm.addEventListener("submit", submitAnswer);
 els.keypad.addEventListener("click", handleKeypadClick);
 els.refreshRankingButton.addEventListener("click", refreshGlobalRanking);
-els.updateButton.addEventListener("click", forceUpdateApp);
+if (els.updateButton) {
+  els.updateButton.addEventListener("click", forceUpdateApp);
+}
+if (els.stampModalClose) {
+  els.stampModalClose.addEventListener("click", closeStampModal);
+}
+if (els.stampModal) {
+  els.stampModal.addEventListener("click", event => {
+    if (event.target.closest("[data-close-stamp-modal]")) closeStampModal();
+  });
+}
 if (els.resetStampButton) {
   els.resetStampButton.addEventListener("click", resetUnlockedStamps);
 }
 els.selectedStampSelect.addEventListener("change", () => setSelectedStamp(els.selectedStampSelect.value));
 els.stampList.addEventListener("click", event => {
   const button = event.target.closest("button[data-set-stamp]");
-  if (!button) return;
-  setSelectedStamp(button.dataset.setStamp || "");
+  if (button) {
+    event.stopPropagation();
+    setSelectedStamp(button.dataset.setStamp || "");
+    return;
+  }
+
+  const card = event.target.closest("[data-preview-stamp]");
+  if (card) {
+    openStampModal(card.dataset.previewStamp || "");
+  }
+});
+els.stampList.addEventListener("keydown", event => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const card = event.target.closest("[data-preview-stamp]");
+  if (!card) return;
+  event.preventDefault();
+  openStampModal(card.dataset.previewStamp || "");
+});
+window.addEventListener("keydown", event => {
+  if (event.key === "Escape") closeStampModal();
 });
 els.operandCount.addEventListener("change", updateDigitControls);
 els.modeButtons.forEach(button => {
